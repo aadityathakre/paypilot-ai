@@ -12,6 +12,8 @@ import { agentRouter } from './modules/agent/agent.routes.js';
 import { checkoutRouter } from './modules/checkout/checkout.routes.js';
 import { paymentsRouter } from './modules/payments/payments.routes.js';
 import { webhooksRouter } from './modules/webhooks/webhooks.routes.js';
+import { merchantRouter } from './modules/merchant/merchant.routes.js';
+import { auditRouter } from './modules/audit/audit.routes.js';
 
 export function createApp(): Express {
   const app = express();
@@ -60,7 +62,7 @@ export function createApp(): Express {
   app.use('/', healthRouter);
   app.use('/api', healthRouter);
 
-  // Commerce, Agent, Policy, Payment & Webhook routes
+  // Commerce, Agent, Policy, Payment, Webhook, Merchant & Audit routes
   app.use('/api/auth', authRouter);
   app.use('/api/products', productsRouter);
   app.use('/api/carts', cartRouter);
@@ -68,6 +70,8 @@ export function createApp(): Express {
   app.use('/api/checkout', checkoutRouter);
   app.use('/api/payments', paymentsRouter);
   app.use('/api/webhooks', webhooksRouter);
+  app.use('/api/merchant', merchantRouter);
+  app.use('/api/audit', auditRouter);
 
   // 404 Route Handler
   app.use((req: Request, _res: Response, next: NextFunction) => {
