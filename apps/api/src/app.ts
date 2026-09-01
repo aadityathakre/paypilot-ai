@@ -6,6 +6,8 @@ import { requestIdMiddleware } from './middleware/requestId.js';
 import { errorHandler, AppError } from './middleware/errorHandler.js';
 import { healthRouter } from './modules/health/health.routes.js';
 import { authRouter } from './modules/auth/auth.routes.js';
+import { productsRouter } from './modules/products/products.routes.js';
+import { cartRouter } from './modules/cart/cart.routes.js';
 
 export function createApp(): Express {
   const app = express();
@@ -54,8 +56,10 @@ export function createApp(): Express {
   app.use('/', healthRouter);
   app.use('/api', healthRouter);
 
-  // Auth routes
+  // Commerce & Auth routes
   app.use('/api/auth', authRouter);
+  app.use('/api/products', productsRouter);
+  app.use('/api/carts', cartRouter);
 
   // 404 Route Handler
   app.use((req: Request, _res: Response, next: NextFunction) => {
