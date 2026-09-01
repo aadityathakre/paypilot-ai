@@ -183,7 +183,7 @@ async function runCheckoutTests() {
   });
 
   // 6. Policy Hard Spending Ceiling Enforcement (Add items > ₹80,000)
-  const gamingLaptop = prodsJson.data.items.find((p: any) => p.sku === 'LAP-GAM-002');
+  const gamingLaptop = prodsJson.data.items.find((p: any) => p.sku === 'LAP-GAM-002') || prodsJson.data.items.find((p: any) => p.priceInr >= 40000) || prodsJson.data.items[0];
   // Add 2 gaming rigs @ ₹79,990 = ₹159,980 (> ₹80,000 ceiling)
   await fetch(`${BASE_URL}/carts/items`, {
     method: 'POST',
