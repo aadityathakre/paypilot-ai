@@ -57,14 +57,80 @@ export class MerchantService {
       ? Math.round(grossRevenueInr / paidOrdersCount)
       : 0;
 
-    // 2. Fetch Agent Sessions & Recommendations Metrics
+    // 2. Calculate Product Performance (Most Buying & Least Buying Products)
+    const productSalesMap: Record<string, { product: any; unitsSold: number; totalRevenueInr: number }> = {};
+
+    paidOrders.forEach((o) => {
+      o.items.forEach((item) => {
+        const pId = item.productId;
+        if (!productSalesMap[pId]) {
+          productSalesMap[pId] = {
+            product: item.product,
+            unitsSold: 0,
+            totalRevenueInr: 0,
+          };
+        }
+        productSalesMap[pId].unitsSold += item.quantity;
+        productSalesMap[pId].totalRevenueInr += (Number(item.unitPricePaise) * item.quantity) / 100;
+      });
+    });
+
+    const productSalesList = Object.values(productSalesMap);
+    
+    // Top-selling (Most Buying) Products
+    const topSellingProducts = [...productSalesList]
+      .sort((a, b) => b.unitsSold - a.unitsSold)
+      .slice(0, 5);
+
+    // Fetch all active products for low stock & slow moving calculation
+    const allMerchantProducts = await prisma.product.findMany({
+      where: { active: true },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    // Low stock products (< 10 units)
+    const lowStockProducts = allMerchantProducts
+      .filter((p) => p.stock <= 10)
+      .map((p) => ({
+        id: p.id,
+        sku: p.sku,
+        name: p.name,
+        category: p.category,
+        stock: p.stock,
+        priceInr: Number(p.pricePaise) / 100,
+      }));
+
+    // Slow moving products (0 sales or low units)
+    const slowMovingProducts = allMerchantProducts
+      .map((p) => {
+        const salesData = productSalesMap[p.id];
+        return {
+          id: p.id,
+          sku: p.sku,
+          name: p.name,
+          category: p.category,
+          stock: p.stock,
+          priceInr: Number(p.pricePaise) / 100,
+          unitsSold: salesData ? salesData.unitsSold : 0,
+          revenueInr: salesData ? salesData.totalRevenueInr : 0,
+        };
+      })
+      .sort((a, b) => a.unitsSold - b.unitsSold)
+      .slice(0, 5);
+
+    // Merchant Wallet Financials
+    const platformFeeRate = 0.02; // 2% MDR fee
+    const platformFeeInr = Math.round(grossRevenueInr * platformFeeRate);
+    const netSettledInr = grossRevenueInr - platformFeeInr;
+
+    // 3. Fetch Agent Sessions & Recommendations Metrics
     const agentSessions = await prisma.agentSession.findMany({
       where: { merchantId },
       include: { events: true },
     });
     const agentSessionsCount = agentSessions.length;
 
-    // 3. Fetch Audit Events for Conversion & Policy Metrics
+    // 4. Fetch Audit Events for Conversion & Policy Metrics
     const auditEvents = await prisma.auditEvent.findMany({
       where: { merchantId },
       orderBy: { createdAt: 'desc' },
@@ -100,6 +166,8 @@ export class MerchantService {
       overview: {
         grossRevenueInr,
         grossRevenuePaise: totalRevenuePaise,
+        platformFeeInr,
+        netSettledInr,
         totalOrdersCount,
         paidOrdersCount,
         pendingOrdersCount: pendingOrders.length,
@@ -112,6 +180,19 @@ export class MerchantService {
         upsellAttachRatePercent,
         policyBlockedCount: policyBlockedEvents.length,
         policyApprovedCount: policyApprovedEvents.length,
+      },
+      productAnalytics: {
+        topSellingProducts,
+        slowMovingProducts,
+        lowStockProducts,
+      },
+      wallet: {
+        totalRevenueInr: grossRevenueInr,
+        platformFeeInr,
+        netSettledInr,
+        availablePayoutInr: netSettledInr,
+        payoutStatus: 'READY_FOR_SETTLEMENT',
+        settlementAccount: 'HDFC Bank **** 9821 (IFSC: HDFC0001234)',
       },
       topRecommendedSkus,
       recentOrders: orders.slice(0, 8).map((o) => ({

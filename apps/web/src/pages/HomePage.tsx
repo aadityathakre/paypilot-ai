@@ -23,7 +23,7 @@ import {
   MicOff,
   Layers
 } from 'lucide-react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams, Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import { useSpeechRecognition } from '../hooks/useSpeechRecognition';
@@ -88,6 +88,12 @@ interface ChatMessage {
 
 export const HomePage: React.FC = () => {
   const { user, token, openAuthModal } = useAuth();
+
+  // If user is a merchant, redirect to Merchant Studio Dashboard
+  if (user && (user.role === 'MERCHANT' || user.role === 'ADMIN')) {
+    return <Navigate to="/merchant" replace />;
+  }
+
   const { addItem, itemCount } = useCart();
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [inputMessage, setInputMessage] = useState('');
