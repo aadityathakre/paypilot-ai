@@ -1,128 +1,435 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   Bot, 
   Send, 
   Sparkles, 
   ShieldCheck, 
-  CreditCard, 
-  TrendingUp, 
   CheckCircle2, 
   ArrowRight,
-  SlidersHorizontal
+  SlidersHorizontal,
+  ShoppingCart,
+  Check,
+  Zap,
+  Tag,
+  AlertCircle
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
+interface RankedRecommendation {
+  product: {
+    id: string;
+    sku: string;
+    name: string;
+    description: string;
+    category: string;
+    priceInr: number;
+    stock: number;
+    imageUrl: string | null;
+    attributes: Record<string, any>;
+  };
+  score: number;
+  reasons: string[];
+  tradeOffs: string[];
+}
+
+interface UpsellData {
+  product: {
+    id: string;
+    sku: string;
+    name: string;
+    description: string;
+    category: string;
+    priceInr: number;
+  };
+  reason: string;
+  discountBps: number;
+  originalPriceInr: number;
+  discountedPriceInr: number;
+}
+
+interface ChatMessage {
+  id: string;
+  role: 'user' | 'assistant';
+  text: string;
+  recommendations?: RankedRecommendation[];
+  upsell?: UpsellData | null;
+  timestamp: string;
+}
+
 export const HomePage: React.FC = () => {
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [token, setToken] = useState<string | null>(null);
   const [inputMessage, setInputMessage] = useState('');
-  const [messages, setMessages] = useState<Array<{ role: 'user' | 'assistant'; text: string }>>([
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [addedProductIds, setAddedProductIds] = useState<Set<string>>(new Set());
+  const [cartSuccessMessage, setCartSuccessMessage] = useState<string | null>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const [messages, setMessages] = useState<ChatMessage[]>([
     {
+      id: 'welcome',
       role: 'assistant',
-      text: 'Hello! I am PayPilot, your AI commerce assistant. Tell me what you need (e.g., "I need a coding laptop under ₹70,000 with long battery life and a wireless mouse"), and I will curate verified catalog options and prepare a safe checkout journey for you.',
+      text: 'Hello! I am **PayPilot AI**, your tool-grounded commerce assistant. Tell me what you are looking for (e.g. "I need a coding laptop under ₹70,000 and a mouse"), and I will query verified catalog tools and prepare a bounded purchase path.',
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     },
   ]);
 
   const samplePrompts = [
-    { label: '💻 Coding Setup', text: 'I need a coding laptop under ₹70,000 and a wireless mouse' },
-    { label: '🎮 Gaming Setup', text: 'Looking for a high-refresh gaming setup under ₹85,000' },
-    { label: '🎧 WFH Audio & Video', text: 'Best noise-cancelling headphones and 1080p webcam under ₹15,000' },
+    { label: '💻 Coding Laptop Setup', text: 'I need a coding laptop under ₹70,000 with long battery life' },
+    { label: '🎮 High-FPS Gaming Setup', text: 'Looking for a gaming laptop under ₹85,000' },
+    { label: '🖥️ 4K Coding Monitor', text: 'Recommend a 4K monitor for programming and multitasking under ₹30,000' },
+    { label: '🎧 Audio & Video for WFH', text: 'Noise cancelling headphones and streaming webcam under ₹15,000' },
   ];
 
-  const handleSend = (textToSend?: string) => {
+  // Initialize customer session on mount
+  useEffect(() => {
+    async function initSession() {
+      try {
+        // 1. Auto-login or register as demo customer
+        const loginRes = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: 'customer@paypilot.ai', password: 'CustomerPass@123' }),
+        });
+        const loginData = await loginRes.json();
+
+        let authToken = loginData.data?.token;
+        if (!authToken) {
+          const regRes = await fetch('/api/auth/register', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: 'Demo Customer', email: `customer_${Date.now()}@paypilot.ai`, password: 'CustomerPass@123' }),
+          });
+          const regData = await regRes.json();
+          authToken = regData.data?.token;
+        }
+
+        setToken(authToken);
+
+        // 2. Initialize Agent Session
+        const sessRes = await fetch('/api/agent/sessions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${authToken}`,
+          },
+          body: JSON.stringify({}),
+        });
+        const sessData = await sessRes.json();
+        if (sessData.data?.session?.id) {
+          setSessionId(sessData.data.session.id);
+        }
+      } catch (err) {
+        console.error('Error initializing agent session:', err);
+      }
+    }
+
+    initSession();
+  }, []);
+
+  // Scroll to latest message
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages, isProcessing]);
+
+  const handleSendMessage = async (textToSend?: string) => {
     const text = textToSend || inputMessage;
-    if (!text.trim()) return;
+    if (!text.trim() || isProcessing) return;
 
-    setMessages((prev) => [...prev, { role: 'user', text }]);
+    const userMsg: ChatMessage = {
+      id: `msg_${Date.now()}`,
+      role: 'user',
+      text,
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    };
+
+    setMessages((prev) => [...prev, userMsg]);
     setInputMessage('');
+    setIsProcessing(true);
 
-    // Phase 1 demo response placeholder (Phase 5 will attach real LLM agent)
-    setTimeout(() => {
+    try {
+      if (!sessionId || !token) {
+        throw new Error('Session not initialized yet');
+      }
+
+      const res = await fetch(`/api/agent/sessions/${sessionId}/messages`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ message: text }),
+      });
+
+      const json = await res.json();
+
+      if (json.success && json.data) {
+        const assistantMsg: ChatMessage = {
+          id: `msg_asst_${Date.now()}`,
+          role: 'assistant',
+          text: json.data.explanation || 'Here are the best matching options from our verified catalog:',
+          recommendations: json.data.recommendations || [],
+          upsell: json.data.suggestedUpsell || null,
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        };
+        setMessages((prev) => [...prev, assistantMsg]);
+      } else {
+        throw new Error(json.error?.message || 'Agent failed to respond');
+      }
+    } catch (err: any) {
       setMessages((prev) => [
         ...prev,
         {
+          id: `msg_err_${Date.now()}`,
           role: 'assistant',
-          text: `I understood your intent: "${text}". In Phase 1, repository & environment are active. In Phase 2 & 5, our verified catalog tools will extract structured constraints, query PostgreSQL, and rank candidates for checkout!`,
+          text: `I processed your request using local catalog tools. ${err.message || 'Please try again.'}`,
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         },
       ]);
-    }, 600);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleAddToCart = async (productId: string, productName: string) => {
+    if (!token) return;
+    try {
+      const res = await fetch('/api/carts/items', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ productId, quantity: 1 }),
+      });
+
+      const json = await res.json();
+      if (json.success) {
+        setAddedProductIds((prev) => new Set([...prev, productId]));
+        setCartSuccessMessage(`Added "${productName}" to cart!`);
+        setTimeout(() => setCartSuccessMessage(null), 3500);
+      }
+    } catch (err) {
+      console.error('Add to cart failed:', err);
+    }
   };
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+      {/* Toast Alert */}
+      {cartSuccessMessage && (
+        <div className="fixed top-20 right-6 z-50 p-4 rounded-xl bg-emerald-950/90 border border-emerald-500/40 text-emerald-200 text-xs font-semibold shadow-glow-cyan flex items-center gap-2 backdrop-blur-xl animate-fade-in">
+          <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+          <span>{cartSuccessMessage}</span>
+          <Link to="/cart" className="ml-2 underline text-white hover:text-emerald-300">
+            View Cart →
+          </Link>
+        </div>
+      )}
+
       {/* Hero Section */}
-      <section className="text-center space-y-4 max-w-3xl mx-auto pt-4">
-        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-brand-500/10 border border-brand-500/30 text-brand-400 text-xs font-semibold">
+      <section className="text-center space-y-3 max-w-3xl mx-auto pt-2">
+        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-brand-500/10 border border-brand-500/30 text-brand-400 text-xs font-semibold">
           <Sparkles className="w-3.5 h-3.5" />
-          <span>Intent-to-Action Agentic Commerce</span>
+          <span>Track 1: AI-Powered Agentic Commerce</span>
         </div>
 
-        <h1 className="text-4xl sm:text-5xl font-extrabold tracking-tight text-white leading-tight">
-          Turn Customer Intent Into a <span className="gradient-text">Bounded Checkout</span>
+        <h1 className="text-3xl sm:text-5xl font-extrabold tracking-tight text-white leading-tight">
+          Natural-Language Intent to <span className="gradient-text">Bounded Checkout</span>
         </h1>
 
-        <p className="text-base sm:text-lg text-slate-400">
-          Discover verified products via natural language, receive explainable recommendations with smart upsells, and execute secure Razorpay test-mode payments with human approval.
+        <p className="text-sm sm:text-base text-slate-400">
+          Discover verified products from PostgreSQL, score options with multi-signal ranking, and authorize payments with policy guardrails.
         </p>
       </section>
 
       {/* Main Interactive Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Left 2 Cols: Interactive AI Commerce Chat */}
-        <div className="lg:col-span-2 glass-panel rounded-2xl p-6 flex flex-col h-[580px] shadow-glass border border-white/10">
+        {/* Left 2 Cols: Live AI Commerce Chat */}
+        <div className="lg:col-span-2 glass-panel rounded-2xl p-5 flex flex-col h-[650px] shadow-glass border border-white/10">
           {/* Chat Header */}
-          <div className="flex items-center justify-between pb-4 border-b border-white/10">
+          <div className="flex items-center justify-between pb-3 border-b border-white/10">
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-lg bg-brand-500/20 border border-brand-500/40 flex items-center justify-center text-brand-400">
+              <div className="w-9 h-9 rounded-xl bg-brand-500/20 border border-brand-500/40 flex items-center justify-center text-brand-400 shadow-glow-cyan">
                 <Bot className="w-5 h-5" />
               </div>
               <div>
-                <h2 className="text-sm font-semibold text-white flex items-center gap-1.5">
-                  PayPilot Agent
-                  <span className="w-2 h-2 rounded-full bg-emerald-400" />
+                <h2 className="text-sm font-semibold text-white flex items-center gap-2">
+                  PayPilot AI Commerce Agent
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
                 </h2>
-                <p className="text-xs text-slate-400">Tool-grounded • Policy-enforced</p>
+                <p className="text-[11px] text-slate-400 font-mono">
+                  Tool Grounded • Gemini LLM • PostgreSQL Verified
+                </p>
               </div>
             </div>
 
             <div className="flex items-center gap-2 text-xs text-slate-400">
-              <SlidersHorizontal className="w-4 h-4 text-slate-400" />
-              <span>Session: active</span>
+              <SlidersHorizontal className="w-3.5 h-3.5" />
+              <span className="font-mono text-[11px]">Session: Active</span>
             </div>
           </div>
 
           {/* Messages Area */}
-          <div className="flex-1 overflow-y-auto py-4 space-y-4 pr-2">
-            {messages.map((msg, idx) => (
+          <div className="flex-1 overflow-y-auto py-4 space-y-4 pr-1">
+            {messages.map((msg) => (
               <div
-                key={idx}
-                className={`flex gap-3 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                key={msg.id}
+                className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}
               >
-                {msg.role === 'assistant' && (
-                  <div className="w-8 h-8 rounded-lg bg-brand-600/30 border border-brand-500/40 flex items-center justify-center text-brand-300 shrink-0 mt-0.5">
-                    <Bot className="w-4 h-4" />
-                  </div>
-                )}
                 <div
-                  className={`max-w-[82%] p-3.5 rounded-2xl text-sm leading-relaxed ${
-                    msg.role === 'user'
-                      ? 'bg-gradient-to-r from-brand-600 to-indigo-600 text-white rounded-tr-sm shadow-glow-cyan'
-                      : 'glass-card text-slate-200 border border-white/10 rounded-tl-sm'
+                  className={`flex gap-3 max-w-[92%] ${
+                    msg.role === 'user' ? 'justify-end' : 'justify-start'
                   }`}
                 >
-                  {msg.text}
+                  {msg.role === 'assistant' && (
+                    <div className="w-7 h-7 rounded-lg bg-brand-600/30 border border-brand-500/40 flex items-center justify-center text-brand-300 shrink-0 mt-0.5">
+                      <Bot className="w-4 h-4" />
+                    </div>
+                  )}
+                  <div
+                    className={`p-3.5 rounded-2xl text-sm leading-relaxed ${
+                      msg.role === 'user'
+                        ? 'bg-gradient-to-r from-brand-600 to-indigo-600 text-white rounded-tr-sm shadow-glow-cyan'
+                        : 'glass-card text-slate-200 border border-white/10 rounded-tl-sm'
+                    }`}
+                  >
+                    <p className="whitespace-pre-line">{msg.text}</p>
+                    <span className="block text-[10px] text-slate-400 mt-1.5 text-right font-mono">
+                      {msg.timestamp}
+                    </span>
+                  </div>
                 </div>
+
+                {/* Render Recommendation Cards if present */}
+                {msg.recommendations && msg.recommendations.length > 0 && (
+                  <div className="w-full pl-10 pt-3 space-y-3">
+                    <p className="text-xs font-semibold text-brand-300 flex items-center gap-1.5">
+                      <Sparkles className="w-3.5 h-3.5 text-brand-400" />
+                      Verified Catalog Matches ({msg.recommendations.length} items scored)
+                    </p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {msg.recommendations.map((rec) => {
+                        const isAdded = addedProductIds.has(rec.product.id);
+                        return (
+                          <div
+                            key={rec.product.id}
+                            className="glass-card rounded-xl p-3.5 border border-white/10 flex flex-col justify-between hover:border-brand-500/40 transition-all"
+                          >
+                            <div className="space-y-2">
+                              <div className="flex items-center justify-between">
+                                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-400 uppercase">
+                                  {rec.product.category}
+                                </span>
+                                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                                  {Math.round(rec.score * 100)}% Match
+                                </span>
+                              </div>
+
+                              <h4 className="text-xs font-bold text-white leading-snug">
+                                {rec.product.name}
+                              </h4>
+                              <p className="text-xs font-extrabold text-brand-400 font-mono">
+                                ₹{rec.product.priceInr.toLocaleString('en-IN')}
+                              </p>
+
+                              {/* Reasons list */}
+                              <ul className="space-y-1 text-[11px] text-slate-300 pt-1">
+                                {rec.reasons.slice(0, 2).map((r, i) => (
+                                  <li key={i} className="flex items-start gap-1">
+                                    <Check className="w-3 h-3 text-emerald-400 shrink-0 mt-0.5" />
+                                    <span className="line-clamp-1">{r}</span>
+                                  </li>
+                                ))}
+                              </ul>
+
+                              {rec.tradeOffs.length > 0 && (
+                                <p className="text-[10px] text-amber-300 flex items-center gap-1">
+                                  <AlertCircle className="w-3 h-3" />
+                                  <span className="line-clamp-1">{rec.tradeOffs[0]}</span>
+                                </p>
+                              )}
+                            </div>
+
+                            <button
+                              onClick={() => handleAddToCart(rec.product.id, rec.product.name)}
+                              className={`mt-3 w-full py-1.5 px-3 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${
+                                isAdded
+                                  ? 'bg-emerald-600/30 text-emerald-300 border border-emerald-500/40'
+                                  : 'bg-brand-500 hover:bg-brand-400 text-white shadow-glow-cyan'
+                              }`}
+                            >
+                              {isAdded ? (
+                                <>
+                                  <Check className="w-3.5 h-3.5" />
+                                  <span>In Cart</span>
+                                </>
+                              ) : (
+                                <>
+                                  <ShoppingCart className="w-3.5 h-3.5" />
+                                  <span>Add to Cart</span>
+                                </>
+                              )}
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Render Smart Upsell Banner if present */}
+                {msg.upsell && (
+                  <div className="w-full pl-10 pt-2">
+                    <div className="p-3.5 rounded-xl bg-indigo-950/40 border border-indigo-500/30 flex items-center justify-between gap-3">
+                      <div className="space-y-0.5">
+                        <div className="flex items-center gap-1.5">
+                          <Tag className="w-3.5 h-3.5 text-indigo-400" />
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-300">
+                            Smart Upsell Proposal ({msg.upsell.discountBps / 100}% Bundle Off)
+                          </span>
+                        </div>
+                        <h4 className="text-xs font-semibold text-white">
+                          {msg.upsell.product.name}
+                        </h4>
+                        <p className="text-[11px] text-slate-300">
+                          {msg.upsell.reason} •{' '}
+                          <span className="line-through text-slate-500">₹{msg.upsell.originalPriceInr}</span>{' '}
+                          <strong className="text-emerald-400 font-mono">₹{msg.upsell.discountedPriceInr}</strong>
+                        </p>
+                      </div>
+
+                      <button
+                        onClick={() => handleAddToCart(msg.upsell!.product.id, msg.upsell!.product.name)}
+                        className="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shrink-0 transition-all shadow-glow-indigo"
+                      >
+                        + Add Bundle
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             ))}
+
+            {isProcessing && (
+              <div className="flex items-center gap-3 pl-2 text-xs text-brand-400 animate-pulse">
+                <Bot className="w-5 h-5" />
+                <span className="font-mono">PayPilot agent querying catalog & ranking candidates...</span>
+              </div>
+            )}
+
+            <div ref={messagesEndRef} />
           </div>
 
           {/* Sample Prompts Chips */}
-          <div className="pt-3 pb-2 border-t border-white/5">
-            <p className="text-[11px] font-medium text-slate-400 mb-2">Try sample intent requests:</p>
-            <div className="flex flex-wrap gap-2">
+          <div className="pt-2 pb-2 border-t border-white/5">
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
               {samplePrompts.map((p, i) => (
                 <button
                   key={i}
-                  onClick={() => handleSend(p.text)}
-                  className="px-2.5 py-1 rounded-lg text-xs bg-slate-800/70 hover:bg-brand-500/20 hover:text-brand-300 hover:border-brand-500/40 border border-white/10 text-slate-300 transition-all text-left"
+                  disabled={isProcessing}
+                  onClick={() => handleSendMessage(p.text)}
+                  className="px-2.5 py-1 rounded-lg text-xs bg-slate-800/80 hover:bg-brand-500/20 hover:text-brand-300 hover:border-brand-500/40 border border-white/10 text-slate-300 transition-all shrink-0 text-left"
                 >
                   {p.label}
                 </button>
@@ -134,7 +441,7 @@ export const HomePage: React.FC = () => {
           <form
             onSubmit={(e) => {
               e.preventDefault();
-              handleSend();
+              handleSendMessage();
             }}
             className="pt-2 flex items-center gap-2"
           >
@@ -142,42 +449,44 @@ export const HomePage: React.FC = () => {
               type="text"
               value={inputMessage}
               onChange={(e) => setInputMessage(e.target.value)}
+              disabled={isProcessing}
               placeholder="Describe your purchase needs, budget, or constraints..."
               className="flex-1 px-4 py-2.5 rounded-xl bg-slate-900/90 border border-white/15 focus:border-brand-400 focus:ring-1 focus:ring-brand-400 text-sm text-white placeholder-slate-500 outline-none transition-all"
             />
             <button
               type="submit"
-              className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-brand-500 to-indigo-600 hover:from-brand-400 hover:to-indigo-500 text-white font-medium text-sm flex items-center gap-2 shadow-glow-cyan transition-all"
+              disabled={isProcessing || !inputMessage.trim()}
+              className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-brand-500 to-indigo-600 hover:from-brand-400 hover:to-indigo-500 text-white font-semibold text-sm flex items-center gap-2 shadow-glow-cyan transition-all disabled:opacity-50"
             >
-              <span>Ask</span>
+              <span>Send</span>
               <Send className="w-4 h-4" />
             </button>
           </form>
         </div>
 
-        {/* Right 1 Col: Architecture & Guardrails Highlights */}
+        {/* Right 1 Col: Architecture & Policy Highlights */}
         <div className="space-y-4">
           <div className="glass-card rounded-2xl p-5 border border-white/10 space-y-3">
-            <div className="flex items-center gap-2.5 text-brand-400">
+            <div className="flex items-center gap-2 text-brand-400">
               <ShieldCheck className="w-5 h-5" />
-              <h3 className="font-semibold text-white text-sm">4-Step Bounded Flow</h3>
+              <h3 className="font-semibold text-white text-sm">Agentic Trust Framework</h3>
             </div>
             <ul className="space-y-2.5 text-xs text-slate-300">
               <li className="flex items-start gap-2">
                 <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
-                <span><strong>1. Discover:</strong> Natural language intent structured into category & budget constraints.</span>
+                <span><strong>Intent Grounding:</strong> LLM extracts structured filters; real database returns verified products.</span>
               </li>
               <li className="flex items-start gap-2">
                 <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
-                <span><strong>2. Decide:</strong> Catalog tool retrieves verified products; ranking engine scores options.</span>
+                <span><strong>Deterministic Ranking:</strong> 5-signal scoring (Intent, Budget, Stock, Popularity, Growth).</span>
               </li>
               <li className="flex items-start gap-2">
                 <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
-                <span><strong>3. Gate:</strong> Server policy validates spending limits & requires explicit approval.</span>
+                <span><strong>Policy Gated:</strong> Hard ceiling of ₹80,000 blocks uncontrolled purchases.</span>
               </li>
               <li className="flex items-start gap-2">
                 <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
-                <span><strong>4. Pay:</strong> Razorpay test order creation, Checkout SDK, and HMAC verification.</span>
+                <span><strong>Razorpay Checkout:</strong> Test-mode HMAC SHA256 verified signatures.</span>
               </li>
             </ul>
           </div>
@@ -185,37 +494,36 @@ export const HomePage: React.FC = () => {
           <div className="glass-card rounded-2xl p-5 border border-white/10 space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 text-indigo-400">
-                <TrendingUp className="w-4 h-4" />
-                <h3 className="font-semibold text-white text-sm">Merchant Growth Controls</h3>
+                <Zap className="w-4 h-4" />
+                <h3 className="font-semibold text-white text-sm">Active Merchant Rules</h3>
               </div>
               <Link to="/merchant" className="text-xs text-brand-400 hover:underline flex items-center gap-1">
-                Open <ArrowRight className="w-3 h-3" />
+                Configure <ArrowRight className="w-3 h-3" />
               </Link>
             </div>
-            <p className="text-xs text-slate-400">
-              Merchants can set spend thresholds, configure growth upsell rules, and review conversion analytics in real time.
-            </p>
-            <div className="p-2.5 rounded-lg bg-slate-900/70 border border-white/5 flex items-center justify-between text-xs">
-              <span className="text-slate-400">Spending Cap Limit</span>
-              <span className="font-mono font-semibold text-emerald-400">₹80,000 max</span>
+            <div className="space-y-2 text-xs">
+              <div className="p-2.5 rounded-lg bg-slate-900/70 border border-white/5 flex items-center justify-between">
+                <span className="text-slate-400">Max Transaction Limit</span>
+                <span className="font-mono font-bold text-emerald-400">₹80,000</span>
+              </div>
+              <div className="p-2.5 rounded-lg bg-slate-900/70 border border-white/5 flex items-center justify-between">
+                <span className="text-slate-400">Max Bundle Discount</span>
+                <span className="font-mono font-bold text-indigo-300">10% (1000 bps)</span>
+              </div>
             </div>
           </div>
 
           <div className="glass-card rounded-2xl p-5 border border-white/10 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
-                <CreditCard className="w-5 h-5" />
-              </div>
-              <div>
-                <h4 className="text-xs font-semibold text-white">Razorpay Test Mode</h4>
-                <p className="text-[11px] text-slate-400">Simulated test cards active</p>
-              </div>
+            <div>
+              <h4 className="text-xs font-semibold text-white">Review Active Cart</h4>
+              <p className="text-[11px] text-slate-400">Proceed to bounded checkout</p>
             </div>
             <Link
               to="/cart"
-              className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-medium text-slate-200 border border-white/10"
+              className="px-4 py-2 rounded-xl bg-brand-500 hover:bg-brand-400 text-xs font-semibold text-white shadow-glow-cyan transition-all flex items-center gap-1.5"
             >
-              View Cart
+              <ShoppingCart className="w-3.5 h-3.5" />
+              <span>Open Cart</span>
             </Link>
           </div>
         </div>
