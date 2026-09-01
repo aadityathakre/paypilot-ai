@@ -75,6 +75,10 @@ export class AIProvider {
     }
 
     // 4. Grounded Top Recommendation fallback
+    if (!intent.category && rankedProducts.length > 0) {
+      return `Bilkul! PayPilot AI store par humare paas top verified tech gear available hai. Yahan hamare sabse popular aur top-rated recommendations hain:\n\nAap inme se koi bhi product seedhe apne cart mein add kar sakte hain ya customer approval gate ke saath bounded checkout shuru kar sakte hain!`;
+    }
+
     const topPick = rankedProducts[0].product;
     const topReasons = rankedProducts[0].reasons.join(', ');
     return `Based on your requirements, I recommend the **${topPick.name}** for **₹${(topPick.pricePaise / 100).toLocaleString('en-IN')}**.\n\nIt matches your needs because it is **${topReasons}**. You can add it directly to your cart below or explore the complementary bundle option!`;

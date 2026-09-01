@@ -239,14 +239,27 @@ export class NLPEngine {
       hasCategoryMention = true;
     }
 
-    // 2. Detect Shopping Intent Triggers
+    // 2. Detect Shopping & Open-Ended Recommendation Triggers
     const shoppingTriggers = [
       'buy', 'purchase', 'recommend', 'suggest', 'find', 'show', 'search',
       'need', 'want', 'looking for', 'chahiye', 'kharidna', 'dikhaye', 'batao',
-      'under', 'below', 'budget', 'price', 'best', 'cost'
+      'under', 'below', 'budget', 'price', 'best', 'cost',
+      'aur kya', 'kharid skta', 'kharid sakta', 'kuchh recommend', 'kuch recommend',
+      'what else', 'recommend something', 'suggest products', 'kya kya hai', 'kya sell',
+      'top gear', 'top items', 'best deals', 'kuch naya'
     ];
 
     const hasShoppingTrigger = shoppingTriggers.some((t) => text.includes(t));
+
+    // Open-ended recommendation query (e.g. "aur kya kharid skta hu", "kuchh recommend kr")
+    const isOpenEndedRecommendation = 
+      text.includes('aur kya') || 
+      text.includes('recommend') || 
+      text.includes('suggest') || 
+      text.includes('kuchh') || 
+      text.includes('kya kya') ||
+      text.includes('what else') ||
+      text.includes('sell');
 
     // 3. Extract Budget
     let budgetMax: number | null = null;
@@ -275,7 +288,7 @@ export class NLPEngine {
     if (text.includes('mechanical') || text.includes('tactile')) preferences.push('mechanical');
     if (text.includes('noise') || text.includes('anc')) preferences.push('active noise cancellation');
 
-    const isShopping = hasCategoryMention || (hasShoppingTrigger && (budgetMax !== null || useCases.length > 0));
+    const isShopping = hasCategoryMention || isOpenEndedRecommendation || (hasShoppingTrigger && (budgetMax !== null || useCases.length > 0));
 
     return {
       isShopping,

@@ -24,7 +24,7 @@ export function useSpeechRecognition(): UseSpeechRecognitionReturn {
       const recognition = new SpeechRecognition();
       recognition.continuous = false;
       recognition.interimResults = true;
-      recognition.lang = 'en-US';
+      recognition.lang = 'en-IN';
 
       recognition.onresult = (event: any) => {
         let currentTranscript = '';

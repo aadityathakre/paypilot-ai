@@ -14,11 +14,18 @@ import {
   AlertCircle,
   User as UserIcon,
   Package,
-  Star
+  Star,
+  Maximize2,
+  Minimize2,
+  Minus,
+  Loader2,
+  Mic,
+  MicOff
 } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
+import { useSpeechRecognition } from '../hooks/useSpeechRecognition';
 
 interface RankedRecommendation {
   product: {
@@ -68,25 +75,66 @@ export const HomePage: React.FC = () => {
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [inputMessage, setInputMessage] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
+  const [loadingProductId, setLoadingProductId] = useState<string | null>(null);
   const [addedProductIds, setAddedProductIds] = useState<Set<string>>(new Set());
   const [cartSuccessMessage, setCartSuccessMessage] = useState<string | null>(null);
+  
+  // UI Window Controls State
+  const [isMaximized, setIsMaximized] = useState<boolean>(false);
+  const [isMinimized, setIsMinimized] = useState<boolean>(false);
+
+  // Dynamic Rotating Placeholders
+  const [placeholderIndex, setPlaceholderIndex] = useState(0);
+  const chatPlaceholders = [
+    "Ask 'Aur kya kharid skta hu?' or describe your gear requirements...",
+    "Try 'Coding laptop under ₹70,000 with 16GB RAM'",
+    "Try 'Kuchh recommend kr for gaming and programming'",
+    "Try '4K Monitor for programming and multitasking'",
+    "Try 'Mechanical RGB keyboard with brown switches'",
+    "Try 'Noise cancelling studio headphones under ₹15,000'",
+  ];
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setPlaceholderIndex((prev) => (prev + 1) % chatPlaceholders.length);
+    }, 3500);
+    return () => clearInterval(timer);
+  }, []);
+
+  // Voice Recognition Hook
+  const { isListening, transcript, startListening, stopListening, isSupported } = useSpeechRecognition();
+
+  useEffect(() => {
+    if (transcript) {
+      setInputMessage(transcript);
+    }
+  }, [transcript]);
+
+  const toggleMic = () => {
+    if (isListening) {
+      stopListening();
+    } else {
+      startListening();
+    }
+  };
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: 'welcome',
       role: 'assistant',
-      text: 'Hello! 👋 I am **PayPilot AI**, your trusted agentic commerce assistant.\n\nAsk me anything! You can say hello, ask general tech questions (e.g. *"What is the difference between mechanical and membrane keyboards?"*), or describe your purchase needs (e.g. *"I need a coding laptop under ₹70,000 with a wireless mouse"*), and I will query our verified PostgreSQL catalog and prepare a bounded checkout path.',
+      text: 'Hello! 👋 I am **PayPilot AI**, your trusted agentic commerce assistant.\n\nAsk me anything! You can say hello, ask *"aur kya kharid skta hu?"* or *"kuchh recommend kr"*, ask general tech questions (e.g. *"What is the difference between mechanical and membrane keyboards?"*), or describe your exact purchase needs, and I will query our verified PostgreSQL catalog and prepare a bounded checkout path.',
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     },
   ]);
 
   const samplePrompts = [
-    { label: '👋 Say Hello', text: 'Hi! What can you help me with?' },
+    { label: '🛍️ Aur Kya Kharid Skta Hu?', text: 'aur kya kharid skta hu, kuchh recommend kr' },
     { label: '💻 Coding Laptop Setup', text: 'I need a coding laptop under ₹70,000 with long battery life' },
-    { label: '🎮 High-FPS Gaming Setup', text: 'Looking for a gaming laptop under ₹85,000' },
-    { label: '🖥️ 4K Coding Monitor', text: 'Recommend a 4K monitor for programming and multitasking under ₹30,000' },
-    { label: '🎧 Audio & Video for WFH', text: 'Noise cancelling headphones and streaming webcam under ₹15,000' },
+    { label: '🎮 High-FPS Gaming Rig', text: 'Looking for a gaming laptop under ₹85,000' },
+    { label: '🖥️ 4K Coding Monitor', text: 'Recommend a 4K monitor for programming under ₹30,000' },
+    { label: '🎧 Audio & Video WFH', text: 'Noise cancelling headphones and streaming webcam' },
   ];
 
   // Initialize customer session on mount or token change
@@ -228,11 +276,17 @@ export const HomePage: React.FC = () => {
   };
 
   const handleAddToCart = async (productId: string, productName: string) => {
-    const success = await addItem(productId, 1);
-    if (success) {
-      setAddedProductIds((prev) => new Set([...prev, productId]));
-      setCartSuccessMessage(`Added "${productName}" to cart!`);
-      setTimeout(() => setCartSuccessMessage(null), 3500);
+    if (loadingProductId) return; // double click guardrail
+    setLoadingProductId(productId);
+    try {
+      const success = await addItem(productId, 1);
+      if (success) {
+        setAddedProductIds((prev) => new Set([...prev, productId]));
+        setCartSuccessMessage(`Added "${productName}" to cart!`);
+        setTimeout(() => setCartSuccessMessage(null), 3500);
+      }
+    } finally {
+      setLoadingProductId(null);
     }
   };
 
@@ -267,10 +321,18 @@ export const HomePage: React.FC = () => {
 
       {/* Main Interactive Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Left 2 Cols: Live AI Commerce Chat */}
-        <div className="lg:col-span-2 glass-panel rounded-2xl p-5 flex flex-col h-[680px] shadow-glass border border-white/10">
+        {/* Left 2 Cols: Live AI Commerce Chat Panel */}
+        <div 
+          className={`glass-panel rounded-2xl flex flex-col shadow-glass border transition-all duration-300 ${
+            isMaximized 
+              ? 'fixed inset-4 sm:inset-6 z-50 p-6 bg-slate-950/95 backdrop-blur-2xl border-brand-500/40 shadow-2xl overflow-hidden' 
+              : isMinimized 
+              ? 'hidden' 
+              : 'lg:col-span-2 p-5 h-[680px] border-white/10'
+          }`}
+        >
           {/* Chat Header */}
-          <div className="flex items-center justify-between pb-3 border-b border-white/10">
+          <div className="flex items-center justify-between pb-3 border-b border-white/10 shrink-0">
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-xl bg-brand-500/20 border border-brand-500/40 flex items-center justify-center text-brand-400 shadow-glow-cyan">
                 <Bot className="w-5 h-5" />
@@ -286,11 +348,36 @@ export const HomePage: React.FC = () => {
               </div>
             </div>
 
-            <div className="flex items-center gap-2 text-xs text-slate-400">
-              <SlidersHorizontal className="w-3.5 h-3.5" />
-              <span className="font-mono text-[11px]">
-                User: {user ? user.name : 'Guest'}
-              </span>
+            <div className="flex items-center gap-3">
+              <div className="hidden sm:flex items-center gap-1.5 text-xs text-slate-400">
+                <SlidersHorizontal className="w-3.5 h-3.5" />
+                <span className="font-mono text-[11px]">
+                  User: {user ? user.name : 'Guest'}
+                </span>
+              </div>
+
+              {/* Minimize & Maximize (Full-Screen) Buttons */}
+              <div className="flex items-center gap-1.5 pl-2 border-l border-white/10">
+                <button
+                  type="button"
+                  onClick={() => setIsMinimized(true)}
+                  className="p-1.5 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white transition-colors"
+                  title="Minimize Chatbot Panel"
+                >
+                  <Minus className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsMaximized(!isMaximized);
+                    if (isMinimized) setIsMinimized(false);
+                  }}
+                  className="p-1.5 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white transition-colors"
+                  title={isMaximized ? "Restore Normal View" : "Maximize Full Screen View"}
+                >
+                  {isMaximized ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
+                </button>
+              </div>
             </div>
           </div>
 
@@ -332,9 +419,10 @@ export const HomePage: React.FC = () => {
                       <Sparkles className="w-3.5 h-3.5 text-brand-400" />
                       Verified Catalog Matches ({msg.recommendations.length} items scored)
                     </p>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className={`grid gap-3 ${isMaximized ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-4' : 'grid-cols-1 sm:grid-cols-2'}`}>
                       {msg.recommendations.map((rec) => {
                         const isAdded = addedProductIds.has(rec.product.id);
+                        const isLoadingThis = loadingProductId === rec.product.id;
                         return (
                           <div
                             key={rec.product.id}
@@ -408,15 +496,22 @@ export const HomePage: React.FC = () => {
                               )}
                             </div>
 
+                            {/* Button with Loading Spinner & Double-Click Guardrail */}
                             <button
+                              disabled={isLoadingThis}
                               onClick={() => handleAddToCart(rec.product.id, rec.product.name)}
                               className={`mt-3 w-full py-2 px-3 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${
                                 isAdded
                                   ? 'bg-emerald-600/30 text-emerald-300 border border-emerald-500/40'
-                                  : 'bg-brand-500 hover:bg-brand-400 text-white shadow-glow-cyan'
+                                  : 'bg-brand-500 hover:bg-brand-400 text-white shadow-glow-cyan disabled:opacity-60'
                               }`}
                             >
-                              {isAdded ? (
+                              {isLoadingThis ? (
+                                <>
+                                  <Loader2 className="w-3.5 h-3.5 animate-spin text-white" />
+                                  <span>Adding...</span>
+                                </>
+                              ) : isAdded ? (
                                 <>
                                   <Check className="w-3.5 h-3.5" />
                                   <span>In Cart</span>
@@ -457,10 +552,18 @@ export const HomePage: React.FC = () => {
                       </div>
 
                       <button
+                        disabled={loadingProductId === msg.upsell!.product.id}
                         onClick={() => handleAddToCart(msg.upsell!.product.id, msg.upsell!.product.name)}
-                        className="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shrink-0 transition-all shadow-glow-indigo"
+                        className="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shrink-0 transition-all shadow-glow-indigo flex items-center gap-1.5 disabled:opacity-60"
                       >
-                        + Add Bundle
+                        {loadingProductId === msg.upsell!.product.id ? (
+                          <>
+                            <Loader2 className="w-3 h-3 animate-spin text-white" />
+                            <span>Adding...</span>
+                          </>
+                        ) : (
+                          <span>+ Add Bundle</span>
+                        )}
                       </button>
                     </div>
                   </div>
@@ -479,14 +582,14 @@ export const HomePage: React.FC = () => {
           </div>
 
           {/* Sample Prompts Chips */}
-          <div className="pt-2 pb-2 border-t border-white/5">
+          <div className="pt-2 pb-2 border-t border-white/5 shrink-0">
             <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
               {samplePrompts.map((p, i) => (
                 <button
                   key={i}
                   disabled={isProcessing}
                   onClick={() => handleSendMessage(p.text)}
-                  className="px-2.5 py-1 rounded-lg text-xs bg-slate-800/80 hover:bg-brand-500/20 hover:text-brand-300 hover:border-brand-500/40 border border-white/10 text-slate-300 transition-all shrink-0 text-left"
+                  className="px-2.5 py-1 rounded-lg text-xs bg-slate-800/80 hover:bg-brand-500/20 hover:text-brand-300 hover:border-brand-500/40 border border-white/10 text-slate-300 transition-all shrink-0 text-left disabled:opacity-50"
                 >
                   {p.label}
                 </button>
@@ -494,35 +597,76 @@ export const HomePage: React.FC = () => {
             </div>
           </div>
 
-          {/* Input Form */}
+          {/* Input Form with Voice Speech Recognition & Dynamic Rotating Placeholder */}
           <form
             onSubmit={(e) => {
               e.preventDefault();
               handleSendMessage();
             }}
-            className="pt-2 flex items-center gap-2"
+            className="pt-2 flex items-center gap-2 shrink-0"
           >
-            <input
-              type="text"
-              value={inputMessage}
-              onChange={(e) => setInputMessage(e.target.value)}
-              disabled={isProcessing}
-              placeholder="Ask a question or describe what you want to buy..."
-              className="flex-1 px-4 py-2.5 rounded-xl bg-slate-900/90 border border-white/15 focus:border-brand-400 focus:ring-1 focus:ring-brand-400 text-sm text-white placeholder-slate-500 outline-none transition-all"
-            />
+            <div className="relative flex-1">
+              <input
+                type="text"
+                value={inputMessage}
+                onChange={(e) => setInputMessage(e.target.value)}
+                disabled={isProcessing}
+                placeholder={isListening ? '🎙️ Listening to speech...' : chatPlaceholders[placeholderIndex]}
+                className={`w-full pl-4 pr-10 py-2.5 rounded-xl bg-slate-900/90 border text-sm text-white placeholder-slate-400 outline-none transition-all ${
+                  isListening ? 'border-emerald-400 ring-2 ring-emerald-500/30' : 'border-white/15 focus:border-brand-400 focus:ring-1 focus:ring-brand-400'
+                }`}
+              />
+
+              {isSupported && (
+                <button
+                  type="button"
+                  onClick={toggleMic}
+                  title={isListening ? 'Stop Speech Recording' : 'Voice Search with Speech API'}
+                  className={`absolute right-2 top-2 p-1 rounded-lg transition-colors ${
+                    isListening ? 'bg-emerald-500/30 text-emerald-300 animate-pulse' : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  {isListening ? <MicOff className="w-4 h-4 text-emerald-400" /> : <Mic className="w-4 h-4" />}
+                </button>
+              )}
+            </div>
+
             <button
               type="submit"
               disabled={isProcessing || !inputMessage.trim()}
               className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-brand-500 to-indigo-600 hover:from-brand-400 hover:to-indigo-500 text-white font-semibold text-sm flex items-center gap-2 shadow-glow-cyan transition-all disabled:opacity-50"
             >
-              <span>Send</span>
-              <Send className="w-4 h-4" />
+              {isProcessing ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin text-white" />
+                  <span>Thinking...</span>
+                </>
+              ) : (
+                <>
+                  <span>Send</span>
+                  <Send className="w-4 h-4" />
+                </>
+              )}
             </button>
           </form>
         </div>
 
+        {/* Minimized Floating Bar Pill at Bottom Right */}
+        {isMinimized && (
+          <div 
+            onClick={() => setIsMinimized(false)}
+            className="fixed bottom-6 right-6 z-50 px-5 py-3 rounded-full bg-slate-900/95 border border-brand-500/40 shadow-glow-cyan text-white text-xs font-semibold flex items-center gap-3 cursor-pointer backdrop-blur-xl hover:scale-105 transition-all"
+          >
+            <div className="w-7 h-7 rounded-full bg-brand-500/20 border border-brand-400 flex items-center justify-center text-brand-300">
+              <Bot className="w-4 h-4" />
+            </div>
+            <span>🤖 PayPilot AI Agent (Minimized) • Click to Expand</span>
+            <Maximize2 className="w-4 h-4 text-brand-400" />
+          </div>
+        )}
+
         {/* Right 1 Col: Architecture & Policy Highlights */}
-        <div className="space-y-4">
+        <div className={`space-y-4 ${isMaximized ? 'hidden' : ''}`}>
           <div className="glass-card rounded-2xl p-5 border border-white/10 space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 text-brand-400">

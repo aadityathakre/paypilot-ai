@@ -48,6 +48,22 @@ export const Navbar: React.FC = () => {
     }
   }, [transcript]);
 
+  const [placeholderIndex, setPlaceholderIndex] = useState(0);
+  const searchPlaceholders = [
+    "Try 'Aur kya kharid skta hu?'",
+    "Try 'Coding laptop under ₹70,000 with 16GB RAM'",
+    "Try '4K Monitor for programming & multitasking'",
+    "Try 'Mechanical RGB keyboard with brown switches'",
+    "Try 'ANC Headphones under ₹15,000'",
+  ];
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setPlaceholderIndex((prev) => (prev + 1) % searchPlaceholders.length);
+    }, 3500);
+    return () => clearInterval(timer);
+  }, []);
+
   const isCurrent = (path: string) => location.pathname === path;
 
   const handleSearchSubmit = (e: React.FormEvent) => {
@@ -96,13 +112,13 @@ export const Navbar: React.FC = () => {
             </div>
           </div>
 
-          {/* Top Manual Search Bar with Voice Microphone Button */}
+          {/* Top Manual Search Bar with Voice Microphone Button & Rotating Placeholders */}
           {!isMerchant && (
             <form onSubmit={handleSearchSubmit} className="hidden md:flex flex-1 max-w-md relative">
               <div className="relative w-full">
                 <input
                   type="text"
-                  placeholder={isListening ? 'Listening to speech...' : 'Manual search products...'}
+                  placeholder={isListening ? '🎙️ Listening to speech...' : searchPlaceholders[placeholderIndex]}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className={`w-full pl-9 pr-10 py-2 rounded-xl bg-slate-900/90 border text-xs text-white placeholder-slate-400 outline-none transition-all ${
