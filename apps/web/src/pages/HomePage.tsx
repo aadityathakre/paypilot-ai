@@ -96,9 +96,49 @@ export const HomePage: React.FC = () => {
   const [addedProductIds, setAddedProductIds] = useState<Set<string>>(new Set());
   const [cartSuccessMessage, setCartSuccessMessage] = useState<string | null>(null);
   
-  // UI Window Controls State
+  // UI Window Controls & Chatbot Drawer State
   const [isMaximized, setIsMaximized] = useState<boolean>(false);
   const [isMinimized, setIsMinimized] = useState<boolean>(false);
+  const [isChatbotOpen, setIsChatbotOpen] = useState<boolean>(false);
+
+  // Storefront Catalog State
+  const [catalogProducts, setCatalogProducts] = useState<any[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [isLoadingCatalog, setIsLoadingCatalog] = useState<boolean>(true);
+
+  const categoriesList = [
+    { id: 'all', label: '✨ All Products' },
+    { id: 'laptops', label: '💻 Laptops' },
+    { id: 'monitors', label: '🖥️ Monitors' },
+    { id: 'keyboards_mice', label: '⌨️ Keyboards & Mice' },
+    { id: 'audio_video', label: '🎧 Audio & Video' },
+    { id: 'gadgets', label: '⌚ Electronics & Gadgets' },
+    { id: 'apparel', label: '👕 Clothes & Gear' },
+    { id: 'electricals', label: '⚡ Electricals' },
+    { id: 'accessories', label: '🔌 Accessories' },
+  ];
+
+  // Fetch Storefront Catalog Products
+  useEffect(() => {
+    async function fetchCatalog() {
+      setIsLoadingCatalog(true);
+      try {
+        const url = selectedCategory === 'all'
+          ? '/api/products?limit=24'
+          : `/api/products?category=${selectedCategory}&limit=24`;
+        const res = await fetch(url);
+        const json = await res.json();
+        if (json.success && json.data?.items) {
+          setCatalogProducts(json.data.items);
+        }
+      } catch (err) {
+        console.error('Error fetching storefront catalog:', err);
+      } finally {
+        setIsLoadingCatalog(false);
+      }
+    }
+    fetchCatalog();
+  }, [selectedCategory]);
 
   // Dynamic Rotating Placeholders
   const [placeholderIndex, setPlaceholderIndex] = useState(0);
@@ -179,12 +219,22 @@ export const HomePage: React.FC = () => {
     initSession();
   }, [token]);
 
+  // Helper to open chatbot with prompt and scroll into view
+  const openChatbotWithPrompt = (promptText: string) => {
+    setIsChatbotOpen(true);
+    setIsMinimized(false);
+    handleSendMessage(promptText);
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
   const [searchParams] = useSearchParams();
 
   // Handle URL manual search params from top navbar or voice input
   useEffect(() => {
     const q = searchParams.get('search');
     if (q) {
+      setIsChatbotOpen(true);
+      setIsMinimized(false);
       handleSendMessage(`Search catalog for: ${q}`);
     }
   }, [searchParams]);
@@ -359,8 +409,174 @@ export const HomePage: React.FC = () => {
         </p>
       </section>
 
-      {/* Main Interactive Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      {/* Category Pills & Filter Bar */}
+      <section className="space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Package className="w-5 h-5 text-brand-400" />
+            <h2 className="text-lg font-bold text-white tracking-tight">Verified Products Catalog</h2>
+            <span className="px-2 py-0.5 rounded-full bg-brand-500/20 text-brand-300 text-[11px] font-mono font-semibold">
+              {catalogProducts.length} Items
+            </span>
+          </div>
+
+          <button
+            onClick={() => setIsChatbotOpen(!isChatbotOpen)}
+            className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-brand-500 to-indigo-600 hover:from-brand-400 hover:to-indigo-500 text-white text-xs font-bold shadow-glow-cyan transition-all flex items-center gap-2"
+          >
+            <Bot className="w-4 h-4" />
+            <span>Ask PayPilot AI Agent</span>
+          </button>
+        </div>
+
+        {/* Category Pills */}
+        <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none">
+          {categoriesList.map((cat) => (
+            <button
+              key={cat.id}
+              onClick={() => setSelectedCategory(cat.id)}
+              className={`px-3.5 py-2 rounded-xl text-xs font-semibold shrink-0 transition-all ${
+                selectedCategory === cat.id
+                  ? 'bg-brand-500 text-white shadow-glow-cyan scale-105'
+                  : 'bg-slate-900/80 hover:bg-slate-800 text-slate-300 border border-white/10'
+              }`}
+            >
+              {cat.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Product Storefront Grid */}
+        {isLoadingCatalog ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 py-8">
+            {[1, 2, 3, 4, 5, 6, 7, 8].map((n) => (
+              <div key={n} className="h-72 rounded-2xl bg-slate-900/60 border border-white/5 animate-pulse p-4 space-y-3">
+                <div className="h-36 rounded-xl bg-slate-800/80" />
+                <div className="h-4 bg-slate-800/60 rounded w-3/4" />
+                <div className="h-3 bg-slate-800/40 rounded w-1/2" />
+                <div className="h-8 bg-slate-800/80 rounded-xl pt-2" />
+              </div>
+            ))}
+          </div>
+        ) : catalogProducts.length === 0 ? (
+          <div className="py-12 text-center glass-card rounded-2xl border border-white/10 space-y-3">
+            <Package className="w-10 h-10 text-slate-500 mx-auto" />
+            <h3 className="text-sm font-bold text-white">No products found in this category</h3>
+            <p className="text-xs text-slate-400">Try selecting another category tab or ask PayPilot AI to recommend hardware!</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {catalogProducts.map((p) => {
+              const isAdded = addedProductIds.has(p.id);
+              const isLoadingThis = loadingProductId === p.id;
+
+              return (
+                <div 
+                  key={p.id} 
+                  className="glass-card rounded-2xl border border-white/10 hover:border-brand-500/40 transition-all duration-300 hover:-translate-y-1 hover:shadow-glow-cyan flex flex-col justify-between overflow-hidden group"
+                >
+                  <div className="p-4 space-y-3">
+                    {/* Image & Category Tag */}
+                    <div className="relative aspect-video rounded-xl overflow-hidden bg-slate-950/80 border border-white/5">
+                      {p.imageUrl ? (
+                        <img 
+                          src={p.imageUrl} 
+                          alt={p.name} 
+                          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" 
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-slate-600">
+                          <Package className="w-10 h-10" />
+                        </div>
+                      )}
+
+                      <span className="absolute top-2 left-2 px-2 py-0.5 rounded-full bg-slate-950/90 border border-brand-500/30 text-[10px] font-mono text-brand-300 uppercase">
+                        {p.category}
+                      </span>
+
+                      <span className="absolute top-2 right-2 px-2 py-0.5 rounded-full bg-slate-950/90 border border-amber-500/30 text-[10px] font-mono font-bold text-amber-300 flex items-center gap-1">
+                        <Star className="w-3 h-3 text-amber-400 fill-amber-400" />
+                        <span>{(p.merchantScore ? p.merchantScore * 5 : 4.8).toFixed(1)}</span>
+                      </span>
+                    </div>
+
+                    {/* Title & Description */}
+                    <div>
+                      <h3 className="text-sm font-bold text-white group-hover:text-brand-300 transition-colors line-clamp-1">
+                        {p.name}
+                      </h3>
+                      <p className="text-xs text-slate-400 line-clamp-2 mt-1">
+                        {p.description}
+                      </p>
+                    </div>
+
+                    {/* Attribute Specs Pills */}
+                    {p.attributes && Object.keys(p.attributes).length > 0 && (
+                      <div className="flex flex-wrap gap-1.5 pt-1">
+                        {Object.entries(p.attributes).slice(0, 3).map(([key, val]: [string, any], idx: number) => {
+                          const displayVal = Array.isArray(val) ? val.join(', ') : String(val);
+                          return (
+                            <span key={idx} className="px-2 py-0.5 rounded-md bg-slate-900/90 border border-white/5 text-[10px] font-mono text-slate-300">
+                              {key}: {displayVal}
+                            </span>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Footer & Actions */}
+                  <div className="p-4 pt-0 border-t border-white/5 flex items-center justify-between gap-2 mt-2">
+                    <div>
+                      <span className="text-[10px] text-slate-400 block font-mono">Price</span>
+                      <span className="text-base font-extrabold text-white font-mono">
+                        ₹{(p.priceInr || Number(p.pricePaise) / 100).toLocaleString('en-IN')}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        onClick={() => openChatbotWithPrompt(`Tell me more about ${p.name}`)}
+                        title="Ask PayPilot AI Agent about this product"
+                        className="p-2 rounded-xl bg-indigo-600/20 hover:bg-indigo-600/40 text-indigo-300 border border-indigo-500/30 text-xs font-semibold transition-all"
+                      >
+                        <Bot className="w-4 h-4 text-indigo-400" />
+                      </button>
+
+                      <button
+                        disabled={isLoadingThis}
+                        onClick={() => handleAddToCart(p.id, p.name)}
+                        className={`px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all ${
+                          isAdded
+                            ? 'bg-emerald-600/30 text-emerald-300 border border-emerald-500/40'
+                            : 'bg-brand-500 hover:bg-brand-400 text-white shadow-glow-cyan disabled:opacity-60'
+                        }`}
+                      >
+                        {isLoadingThis ? (
+                          <Loader2 className="w-4 h-4 animate-spin text-white" />
+                        ) : isAdded ? (
+                          <>
+                            <Check className="w-4 h-4" />
+                            <span>In Cart</span>
+                          </>
+                        ) : (
+                          <>
+                            <ShoppingCart className="w-4 h-4" />
+                            <span>Add</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </section>
+
+      {/* Main Interactive Grid & AI Chatbot Panel Drawer */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 pt-4">
         {/* Left 2 Cols: Live AI Commerce Chat Panel */}
         <div 
           className={`glass-panel rounded-2xl flex flex-col shadow-glass border transition-all duration-300 ${
