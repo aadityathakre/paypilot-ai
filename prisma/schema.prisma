@@ -1,0 +1,341 @@
+// PayPilot AI — Prisma Schema Definition (PostgreSQL)
+// Relational Architecture for Track 1: AI Growth & Agentic Commerce
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ----------------------------------------------------
+// ENUMS
+// ----------------------------------------------------
+
+enum UserRole {
+  CUSTOMER
+  MERCHANT
+  ADMIN
+}
+
+enum AgentSessionStatus {
+  ACTIVE
+  COMPLETED
+  FAILED
+}
+
+enum AgentMessageRole {
+  USER
+  ASSISTANT
+  SYSTEM
+  TOOL
+}
+
+enum AgentEventStatus {
+  SUCCESS
+  FAILURE
+  BLOCKED
+}
+
+enum CartStatus {
+  ACTIVE
+  CHECKOUT_PENDING
+  CONVERTED
+  ABANDONED
+}
+
+enum OrderStatus {
+  CREATED
+  PENDING_PAYMENT
+  ATTEMPTED
+  PAID
+  FAILED
+  CANCELLED
+}
+
+enum OrderSource {
+  AI_ASSISTED
+  DIRECT
+}
+
+enum PaymentStatus {
+  CREATED
+  AUTHORIZED
+  CAPTURED
+  FAILED
+  REFUNDED
+}
+
+// ----------------------------------------------------
+// CORE ENTITIES
+// ----------------------------------------------------
+
+model User {
+  id           String    @id @default(uuid())
+  name         String
+  email        String    @unique
+  passwordHash String
+  role         UserRole  @default(CUSTOMER)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  // Relationships
+  merchants     Merchant[]
+  agentSessions AgentSession[]
+  carts         Cart[]
+  orders        Order[]
+  auditEvents   AuditEvent[]
+
+  @@map("users")
+}
+
+model Merchant {
+  id          String   @id @default(uuid())
+  ownerUserId String
+  ownerUser   User     @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
+  name        String
+  currency    String   @default("INR")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relationships
+  policy        MerchantPolicy?
+  products      Product[]
+  orders        Order[]
+  agentSessions AgentSession[]
+  carts         Cart[]
+  auditEvents   AuditEvent[]
+
+  @@map("merchants")
+}
+
+model MerchantPolicy {
+  id                          String   @id @default(uuid())
+  merchantId                  String   @unique
+  merchant                    Merchant @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  maxOrderValuePaise          BigInt   @default(8000000) // ₹80,000
+  maxUpsellDiscountBps        Int      @default(1000)    // 1000 bps = 10%
+  upsellEnabled               Boolean  @default(true)
+  paymentConfirmationRequired Boolean  @default(true)
+  allowedCategories           Json?
+  allowedAgentActions         Json?
+  createdAt                   DateTime @default(now())
+  updatedAt                   DateTime @updatedAt
+
+  @@map("merchant_policies")
+}
+
+model Product {
+  id            String   @id @default(uuid())
+  merchantId    String
+  merchant      Merchant @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  sku           String   @unique
+  name          String
+  description   String
+  category      String
+  pricePaise    BigInt   // Stored in paise (e.g. 6499000 = ₹64,990)
+  stock         Int      @default(0)
+  active        Boolean  @default(true)
+  attributes    Json?
+  imageUrl      String?
+  merchantScore Float    @default(1.0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relationships
+  cartItems  CartItem[]
+  orderItems OrderItem[]
+
+  @@index([merchantId, active, category])
+  @@index([merchantId, pricePaise])
+  @@map("products")
+}
+
+// ----------------------------------------------------
+// AI AGENT & SESSION ENTITIES
+// ----------------------------------------------------
+
+model AgentSession {
+  id         String             @id @default(uuid())
+  customerId String
+  customer   User               @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  merchantId String
+  merchant   Merchant           @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  status     AgentSessionStatus @default(ACTIVE)
+  createdAt  DateTime           @default(now())
+  updatedAt  DateTime           @updatedAt
+
+  // Relationships
+  messages    AgentMessage[]
+  events      AgentEvent[]
+  auditEvents AuditEvent[]
+
+  @@index([customerId, createdAt])
+  @@map("agent_sessions")
+}
+
+model AgentMessage {
+  id             String           @id @default(uuid())
+  sessionId      String
+  session        AgentSession     @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  role           AgentMessageRole
+  content        String
+  structuredData Json?
+  createdAt      DateTime         @default(now())
+
+  @@map("agent_messages")
+}
+
+model AgentEvent {
+  id        String           @id @default(uuid())
+  sessionId String
+  session   AgentSession     @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  eventType String
+  actor     String
+  toolName  String?
+  input     Json?
+  output    Json?
+  status    AgentEventStatus @default(SUCCESS)
+  latencyMs Int?
+  createdAt DateTime         @default(now())
+
+  @@index([sessionId, createdAt])
+  @@map("agent_events")
+}
+
+// ----------------------------------------------------
+// COMMERCE, CART & ORDER ENTITIES
+// ----------------------------------------------------
+
+model Cart {
+  id         String     @id @default(uuid())
+  customerId String
+  customer   User       @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  merchantId String
+  merchant   Merchant   @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  status     CartStatus @default(ACTIVE)
+  currency   String     @default("INR")
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+
+  // Relationships
+  items  CartItem[]
+  orders Order[]
+
+  @@map("carts")
+}
+
+model CartItem {
+  id             String   @id @default(uuid())
+  cartId         String
+  cart           Cart     @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  productId      String
+  product        Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  quantity       Int      @default(1)
+  unitPricePaise BigInt
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([cartId, productId])
+  @@map("cart_items")
+}
+
+model Order {
+  id              String      @id @default(uuid())
+  merchantId      String
+  merchant        Merchant    @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  customerId      String
+  customer        User        @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  cartId          String?
+  cart            Cart?       @relation(fields: [cartId], references: [id], onDelete: SetNull)
+  razorpayOrderId String?     @unique
+  receipt         String      @unique
+  amountPaise     BigInt
+  currency        String      @default("INR")
+  status          OrderStatus @default(CREATED)
+  source          OrderSource @default(AI_ASSISTED)
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  // Relationships
+  items       OrderItem[]
+  payments    Payment[]
+  auditEvents AuditEvent[]
+
+  @@index([merchantId, createdAt])
+  @@index([customerId, createdAt])
+  @@index([razorpayOrderId])
+  @@map("orders")
+}
+
+model OrderItem {
+  id             String   @id @default(uuid())
+  orderId        String
+  order          Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId      String
+  product        Product  @relation(fields: [productId], references: [id], onDelete: Restrict)
+  quantity       Int      @default(1)
+  unitPricePaise BigInt
+  discountPaise  BigInt   @default(0)
+  createdAt      DateTime @default(now())
+
+  @@map("order_items")
+}
+
+// ----------------------------------------------------
+// PAYMENT & AUDIT TRAIL ENTITIES
+// ----------------------------------------------------
+
+model Payment {
+  id                String        @id @default(uuid())
+  orderId           String
+  order             Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  razorpayPaymentId String?       @unique
+  razorpaySignature String?
+  status            PaymentStatus @default(CREATED)
+  amountPaise       BigInt
+  method            String?
+  rawStatus         String?
+  verifiedAt        DateTime?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  @@index([razorpayPaymentId])
+  @@map("payments")
+}
+
+model AuditEvent {
+  id         String        @id @default(uuid())
+  merchantId String
+  merchant   Merchant      @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  customerId String?
+  customer   User?         @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  sessionId  String?
+  session    AgentSession? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+  orderId    String?
+  order      Order?        @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  eventType  String
+  actorType  String
+  requestId  String?
+  data       Json?
+  createdAt  DateTime      @default(now())
+
+  @@index([sessionId, createdAt])
+  @@index([orderId, createdAt])
+  @@index([merchantId, createdAt])
+  @@map("audit_events")
+}
+
+model IdempotencyRecord {
+  id           String   @id @default(uuid())
+  key          String   @unique
+  scope        String
+  responseHash String?
+  response     Json?
+  createdAt    DateTime @default(now())
+  expiresAt    DateTime
+
+  @@map("idempotency_records")
+}
