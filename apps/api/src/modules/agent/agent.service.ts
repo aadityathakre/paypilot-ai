@@ -89,77 +89,84 @@ export class AgentService {
       },
     });
 
-    // 3. Invoke Verified Catalog Tool (PostgreSQL DB Query)
-    const toolStart = Date.now();
-    const catalogResults = await ProductsService.listProducts({
-      category: intent.category || undefined,
-      maxPrice: intent.budgetMax || undefined,
-      search: intent.searchTerm || undefined,
-      limit: 10,
-      page: 1,
-      sortBy: 'score_desc',
-    });
+    // 3. Check if intent is conversational (Greeting, General Q&A, Policy Q&A)
+    const isConversational = intent.intent === 'greeting' || intent.intent === 'general_qa' || intent.intent === 'policy_qa';
 
-    // If initial category filter yields 0 items, broaden search to all in-stock products
-    let candidateItems = catalogResults.items;
-    if (candidateItems.length === 0) {
-      const fallbackSearch = await ProductsService.listProducts({
+    let rankedProducts: any[] = [];
+    let suggestedUpsell: any = null;
+
+    if (!isConversational) {
+      // Invoke Verified Catalog Tool (PostgreSQL DB Query)
+      const toolStart = Date.now();
+      const catalogResults = await ProductsService.listProducts({
+        category: intent.category || undefined,
         maxPrice: intent.budgetMax || undefined,
+        search: intent.searchTerm || undefined,
         limit: 10,
         page: 1,
         sortBy: 'score_desc',
       });
-      candidateItems = fallbackSearch.items;
-    }
 
-    await prisma.agentEvent.create({
-      data: {
-        sessionId: session.id,
-        eventType: 'TOOL_CATALOG_SEARCH',
-        actor: 'CATALOG_TOOL',
-        toolName: 'searchCatalog',
-        input: { category: intent.category, maxPrice: intent.budgetMax, search: intent.searchTerm },
-        output: { resultCount: candidateItems.length, candidates: candidateItems.map((p) => p.sku) },
-        status: AgentEventStatus.SUCCESS,
-        latencyMs: Date.now() - toolStart,
-      },
-    });
-
-    // 4. Deterministic Multi-Signal Ranking
-    const rankedProducts = GrowthService.rankCandidates(intent, candidateItems);
-
-    // 5. Bounded Growth / Upsell Candidate Generation
-    let suggestedUpsell = null;
-    if (rankedProducts.length > 0) {
-      suggestedUpsell = await GrowthService.proposeUpsell(
-        rankedProducts[0].product,
-        session.merchantId
-      );
-
-      if (suggestedUpsell) {
-        await prisma.agentEvent.create({
-          data: {
-            sessionId: session.id,
-            eventType: 'UPSELL_PROPOSED',
-            actor: 'GROWTH_ENGINE',
-            toolName: 'proposeUpsell',
-            input: { primaryProductId: rankedProducts[0].product.id },
-            output: {
-              upsellSku: suggestedUpsell.product.sku,
-              discountBps: suggestedUpsell.discountBps,
-              reason: suggestedUpsell.reason,
-            },
-            status: AgentEventStatus.SUCCESS,
-            latencyMs: 15,
-          },
+      // If initial category filter yields 0 items, broaden search to all in-stock products
+      let candidateItems = catalogResults.items;
+      if (candidateItems.length === 0 && intent.category) {
+        const fallbackSearch = await ProductsService.listProducts({
+          maxPrice: intent.budgetMax || undefined,
+          limit: 10,
+          page: 1,
+          sortBy: 'score_desc',
         });
+        candidateItems = fallbackSearch.items;
+      }
+
+      await prisma.agentEvent.create({
+        data: {
+          sessionId: session.id,
+          eventType: 'TOOL_CATALOG_SEARCH',
+          actor: 'CATALOG_TOOL',
+          toolName: 'searchCatalog',
+          input: { category: intent.category, maxPrice: intent.budgetMax, search: intent.searchTerm },
+          output: { resultCount: candidateItems.length, candidates: candidateItems.map((p) => p.sku) },
+          status: AgentEventStatus.SUCCESS,
+          latencyMs: Date.now() - toolStart,
+        },
+      });
+
+      // Deterministic Multi-Signal Ranking
+      rankedProducts = GrowthService.rankCandidates(intent, candidateItems);
+
+      // Bounded Growth / Upsell Candidate Generation
+      if (rankedProducts.length > 0) {
+        suggestedUpsell = await GrowthService.proposeUpsell(
+          rankedProducts[0].product,
+          session.merchantId
+        );
+
+        if (suggestedUpsell) {
+          await prisma.agentEvent.create({
+            data: {
+              sessionId: session.id,
+              eventType: 'UPSELL_PROPOSED',
+              actor: 'GROWTH_ENGINE',
+              toolName: 'proposeUpsell',
+              input: { primaryProductId: rankedProducts[0].product.id },
+              output: {
+                upsellSku: suggestedUpsell.product.sku,
+                discountBps: suggestedUpsell.discountBps,
+                reason: suggestedUpsell.reason,
+              },
+              status: AgentEventStatus.SUCCESS,
+              latencyMs: 15,
+            },
+          });
+        }
       }
     }
 
-    // 6. Grounded Natural-Language Explanation
+    // 4. Grounded or Conversational Natural-Language Explanation
     const explanation = await AIProvider.generateExplanation(userMessage, intent, rankedProducts);
 
-    // 7. Record Assistant Message in DB
+    // 5. Record Assistant Message in DB
     await prisma.agentMessage.create({
       data: {
         sessionId: session.id,

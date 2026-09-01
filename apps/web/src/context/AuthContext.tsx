@@ -39,9 +39,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
 
-  // Auto initialize demo customer if no active session
+  // Auto initialize demo customer only on first visit if user has not explicitly logged out
   useEffect(() => {
-    if (!token) {
+    const wasExplicitlyLoggedOut = localStorage.getItem('paypilot_logged_out') === 'true';
+    if (!token && !wasExplicitlyLoggedOut) {
       quickLoginAs('CUSTOMER');
     }
   }, []);
@@ -59,6 +60,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setToken(data.data.token);
         localStorage.setItem('paypilot_user', JSON.stringify(data.data.user));
         localStorage.setItem('paypilot_token', data.data.token);
+        localStorage.removeItem('paypilot_logged_out');
         setIsAuthModalOpen(false);
         return true;
       }
@@ -87,6 +89,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setToken(data.data.token);
         localStorage.setItem('paypilot_user', JSON.stringify(data.data.user));
         localStorage.setItem('paypilot_token', data.data.token);
+        localStorage.removeItem('paypilot_logged_out');
         setIsAuthModalOpen(false);
         return true;
       }
@@ -98,6 +101,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const quickLoginAs = async (role: 'CUSTOMER' | 'MERCHANT'): Promise<boolean> => {
+    localStorage.removeItem('paypilot_logged_out');
     if (role === 'CUSTOMER') {
       return login('customer@paypilot.ai', 'CustomerPass@123');
     } else {
@@ -110,6 +114,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setToken(null);
     localStorage.removeItem('paypilot_user');
     localStorage.removeItem('paypilot_token');
+    localStorage.setItem('paypilot_logged_out', 'true');
   };
 
   return (

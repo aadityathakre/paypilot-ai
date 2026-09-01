@@ -13,7 +13,7 @@ const envSchema = z.object({
   DATABASE_URL: z.string().optional().default('postgresql://postgres:password@localhost:5432/paypilot_db?schema=public'),
   JWT_SECRET: z.string().default('paypilot_default_dev_jwt_secret_must_change_in_prod'),
   AI_API_KEY: z.string().optional().default(''),
-  AI_MODEL: z.string().optional().default('gemini-2.0-flash'),
+  AI_MODEL: z.string().optional().default('gemini-2.5-flash'),
   RAZORPAY_KEY_ID: z.string().optional().default('rzp_test_placeholder'),
   RAZORPAY_KEY_SECRET: z.string().optional().default('placeholder_secret'),
   RAZORPAY_WEBHOOK_SECRET: z.string().optional().default('placeholder_webhook_secret'),

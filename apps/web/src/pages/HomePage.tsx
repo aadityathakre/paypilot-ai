@@ -12,7 +12,9 @@ import {
   Zap,
   Tag,
   AlertCircle,
-  User as UserIcon
+  User as UserIcon,
+  Package,
+  Star
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -43,6 +45,7 @@ interface UpsellData {
     description: string;
     category: string;
     priceInr: number;
+    imageUrl?: string | null;
   };
   reason: string;
   discountBps: number;
@@ -73,19 +76,20 @@ export const HomePage: React.FC = () => {
     {
       id: 'welcome',
       role: 'assistant',
-      text: 'Hello! I am **PayPilot AI**, your tool-grounded commerce assistant. Tell me what you are looking for (e.g. "I need a coding laptop under ₹70,000 and a mouse"), and I will query verified catalog tools and prepare a bounded purchase path.',
+      text: 'Hello! 👋 I am **PayPilot AI**, your trusted agentic commerce assistant.\n\nAsk me anything! You can say hello, ask general tech questions (e.g. *"What is the difference between mechanical and membrane keyboards?"*), or describe your purchase needs (e.g. *"I need a coding laptop under ₹70,000 with a wireless mouse"*), and I will query our verified PostgreSQL catalog and prepare a bounded checkout path.',
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     },
   ]);
 
   const samplePrompts = [
+    { label: '👋 Say Hello', text: 'Hi! What can you help me with?' },
     { label: '💻 Coding Laptop Setup', text: 'I need a coding laptop under ₹70,000 with long battery life' },
     { label: '🎮 High-FPS Gaming Setup', text: 'Looking for a gaming laptop under ₹85,000' },
     { label: '🖥️ 4K Coding Monitor', text: 'Recommend a 4K monitor for programming and multitasking under ₹30,000' },
     { label: '🎧 Audio & Video for WFH', text: 'Noise cancelling headphones and streaming webcam under ₹15,000' },
   ];
 
-  // Initialize customer session on mount
+  // Initialize customer session on mount or token change
   useEffect(() => {
     async function initSession() {
       if (!token) return;
@@ -132,32 +136,71 @@ export const HomePage: React.FC = () => {
 
     try {
       if (!sessionId || !token) {
-        throw new Error('Session initializing, please wait a moment');
-      }
+        // If guest, initialize quick customer session
+        const loginRes = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: 'customer@paypilot.ai', password: 'CustomerPass@123' }),
+        });
+        const loginJson = await loginRes.json();
+        const activeToken = loginJson.data?.token;
 
-      const res = await fetch(`/api/agent/sessions/${sessionId}/messages`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ message: text }),
-      });
+        const sessRes = await fetch('/api/agent/sessions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${activeToken}`,
+          },
+          body: JSON.stringify({}),
+        });
+        const sessData = await sessRes.json();
+        const activeSessionId = sessData.data?.session?.id;
 
-      const json = await res.json();
+        const res = await fetch(`/api/agent/sessions/${activeSessionId}/messages`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${activeToken}`,
+          },
+          body: JSON.stringify({ message: text }),
+        });
 
-      if (json.success && json.data) {
-        const assistantMsg: ChatMessage = {
-          id: `msg_asst_${Date.now()}`,
-          role: 'assistant',
-          text: json.data.explanation || 'Here are the best matching options from our verified catalog:',
-          recommendations: json.data.recommendations || [],
-          upsell: json.data.suggestedUpsell || null,
-          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        };
-        setMessages((prev) => [...prev, assistantMsg]);
+        const json = await res.json();
+        if (json.success && json.data) {
+          const assistantMsg: ChatMessage = {
+            id: `msg_asst_${Date.now()}`,
+            role: 'assistant',
+            text: json.data.explanation || 'Here is what I found:',
+            recommendations: json.data.recommendations || [],
+            upsell: json.data.suggestedUpsell || null,
+            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          };
+          setMessages((prev) => [...prev, assistantMsg]);
+        }
       } else {
-        throw new Error(json.error?.message || 'Agent failed to respond');
+        const res = await fetch(`/api/agent/sessions/${sessionId}/messages`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ message: text }),
+        });
+
+        const json = await res.json();
+        if (json.success && json.data) {
+          const assistantMsg: ChatMessage = {
+            id: `msg_asst_${Date.now()}`,
+            role: 'assistant',
+            text: json.data.explanation || 'Here is what I found:',
+            recommendations: json.data.recommendations || [],
+            upsell: json.data.suggestedUpsell || null,
+            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          };
+          setMessages((prev) => [...prev, assistantMsg]);
+        } else {
+          throw new Error(json.error?.message || 'Agent failed to respond');
+        }
       }
     } catch (err: any) {
       setMessages((prev) => [
@@ -165,7 +208,7 @@ export const HomePage: React.FC = () => {
         {
           id: `msg_err_${Date.now()}`,
           role: 'assistant',
-          text: `I processed your request using local catalog tools. ${err.message || 'Please try again.'}`,
+          text: `I'm here to help! ${err.message || 'Please try asking again.'}`,
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         },
       ]);
@@ -215,7 +258,7 @@ export const HomePage: React.FC = () => {
       {/* Main Interactive Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Left 2 Cols: Live AI Commerce Chat */}
-        <div className="lg:col-span-2 glass-panel rounded-2xl p-5 flex flex-col h-[650px] shadow-glass border border-white/10">
+        <div className="lg:col-span-2 glass-panel rounded-2xl p-5 flex flex-col h-[680px] shadow-glass border border-white/10">
           {/* Chat Header */}
           <div className="flex items-center justify-between pb-3 border-b border-white/10">
             <div className="flex items-center gap-3">
@@ -228,7 +271,7 @@ export const HomePage: React.FC = () => {
                   <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
                 </h2>
                 <p className="text-[11px] text-slate-400 font-mono">
-                  Tool Grounded • Gemini LLM • PostgreSQL Verified
+                  Conversational Understanding • Gemini LLM • PostgreSQL Verified
                 </p>
               </div>
             </div>
@@ -285,24 +328,57 @@ export const HomePage: React.FC = () => {
                         return (
                           <div
                             key={rec.product.id}
-                            className="glass-card rounded-xl p-3.5 border border-white/10 flex flex-col justify-between hover:border-brand-500/40 transition-all"
+                            className="glass-card rounded-xl p-3.5 border border-white/10 flex flex-col justify-between hover:border-brand-500/40 transition-all group"
                           >
-                            <div className="space-y-2">
+                            <div className="space-y-2.5">
+                              {/* Product Image Thumbnail */}
+                              <div className="w-full h-32 rounded-lg bg-slate-900/80 border border-white/5 overflow-hidden relative">
+                                {rec.product.imageUrl ? (
+                                  <img
+                                    src={rec.product.imageUrl}
+                                    alt={rec.product.name}
+                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                    onError={(e) => {
+                                      (e.target as HTMLElement).style.display = 'none';
+                                    }}
+                                  />
+                                ) : (
+                                  <div className="w-full h-full flex items-center justify-center text-slate-500">
+                                    <Package className="w-8 h-8" />
+                                  </div>
+                                )}
+                                <div className="absolute top-2 right-2 px-2 py-0.5 rounded-full bg-slate-950/80 backdrop-blur-md text-[10px] font-bold text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
+                                  <Star className="w-2.5 h-2.5 fill-emerald-400" />
+                                  <span>{Math.round(rec.score * 100)}% Match</span>
+                                </div>
+                              </div>
+
                               <div className="flex items-center justify-between">
-                                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-400 uppercase">
+                                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-300 uppercase">
                                   {rec.product.category}
                                 </span>
-                                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                                  {Math.round(rec.score * 100)}% Match
+                                <span className="text-[11px] text-slate-400 font-mono">
+                                  SKU: {rec.product.sku}
                                 </span>
                               </div>
 
                               <h4 className="text-xs font-bold text-white leading-snug">
                                 {rec.product.name}
                               </h4>
-                              <p className="text-xs font-extrabold text-brand-400 font-mono">
+                              <p className="text-sm font-extrabold text-brand-400 font-mono">
                                 ₹{rec.product.priceInr.toLocaleString('en-IN')}
                               </p>
+
+                              {/* Key Attributes Tags */}
+                              {rec.product.attributes && (
+                                <div className="flex flex-wrap gap-1 pt-0.5">
+                                  {Object.entries(rec.product.attributes).slice(0, 3).map(([_k, v], idx) => (
+                                    <span key={idx} className="text-[9px] px-1.5 py-0.5 rounded bg-white/5 border border-white/10 text-slate-300">
+                                      {Array.isArray(v) ? v[0] : String(v)}
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
 
                               {/* Reasons list */}
                               <ul className="space-y-1 text-[11px] text-slate-300 pt-1">
@@ -316,7 +392,7 @@ export const HomePage: React.FC = () => {
 
                               {rec.tradeOffs.length > 0 && (
                                 <p className="text-[10px] text-amber-300 flex items-center gap-1">
-                                  <AlertCircle className="w-3 h-3" />
+                                  <AlertCircle className="w-3 h-3 shrink-0" />
                                   <span className="line-clamp-1">{rec.tradeOffs[0]}</span>
                                 </p>
                               )}
@@ -324,7 +400,7 @@ export const HomePage: React.FC = () => {
 
                             <button
                               onClick={() => handleAddToCart(rec.product.id, rec.product.name)}
-                              className={`mt-3 w-full py-1.5 px-3 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${
+                              className={`mt-3 w-full py-2 px-3 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${
                                 isAdded
                                   ? 'bg-emerald-600/30 text-emerald-300 border border-emerald-500/40'
                                   : 'bg-brand-500 hover:bg-brand-400 text-white shadow-glow-cyan'
@@ -365,8 +441,8 @@ export const HomePage: React.FC = () => {
                         </h4>
                         <p className="text-[11px] text-slate-300">
                           {msg.upsell.reason} •{' '}
-                          <span className="line-through text-slate-500">₹{msg.upsell.originalPriceInr}</span>{' '}
-                          <strong className="text-emerald-400 font-mono">₹{msg.upsell.discountedPriceInr}</strong>
+                          <span className="line-through text-slate-500">₹{msg.upsell.originalPriceInr.toLocaleString('en-IN')}</span>{' '}
+                          <strong className="text-emerald-400 font-mono">₹{msg.upsell.discountedPriceInr.toLocaleString('en-IN')}</strong>
                         </p>
                       </div>
 
@@ -385,7 +461,7 @@ export const HomePage: React.FC = () => {
             {isProcessing && (
               <div className="flex items-center gap-3 pl-2 text-xs text-brand-400 animate-pulse">
                 <Bot className="w-5 h-5" />
-                <span className="font-mono">PayPilot agent querying catalog & ranking candidates...</span>
+                <span className="font-mono">PayPilot agent processing your request...</span>
               </div>
             )}
 
@@ -421,7 +497,7 @@ export const HomePage: React.FC = () => {
               value={inputMessage}
               onChange={(e) => setInputMessage(e.target.value)}
               disabled={isProcessing}
-              placeholder="Describe your purchase needs, budget, or constraints..."
+              placeholder="Ask a question or describe what you want to buy..."
               className="flex-1 px-4 py-2.5 rounded-xl bg-slate-900/90 border border-white/15 focus:border-brand-400 focus:ring-1 focus:ring-brand-400 text-sm text-white placeholder-slate-500 outline-none transition-all"
             />
             <button

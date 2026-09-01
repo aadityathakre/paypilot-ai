@@ -1,7 +1,7 @@
 import { FormattedProduct } from '../../modules/products/products.service.js';
 
 export interface StructuredIntent {
-  intent: 'purchase_search' | 'recommendation' | 'product_inquiry' | 'comparison';
+  intent: 'greeting' | 'general_qa' | 'policy_qa' | 'purchase_search' | 'recommendation' | 'product_inquiry' | 'comparison';
   category: string | null;
   budgetMax: number | null; // Max price in INR
   budgetMin: number | null;
