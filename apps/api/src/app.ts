@@ -5,6 +5,7 @@ import { logger } from './config/logger.js';
 import { requestIdMiddleware } from './middleware/requestId.js';
 import { errorHandler, AppError } from './middleware/errorHandler.js';
 import { healthRouter } from './modules/health/health.routes.js';
+import { authRouter } from './modules/auth/auth.routes.js';
 
 export function createApp(): Express {
   const app = express();
@@ -52,6 +53,9 @@ export function createApp(): Express {
   // Root & Health routes
   app.use('/', healthRouter);
   app.use('/api', healthRouter);
+
+  // Auth routes
+  app.use('/api/auth', authRouter);
 
   // 404 Route Handler
   app.use((req: Request, _res: Response, next: NextFunction) => {
