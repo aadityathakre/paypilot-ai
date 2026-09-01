@@ -1,6 +1,6 @@
 import crypto from 'crypto';
 import { OrderStatus, PaymentStatus, CartStatus } from '@prisma/client';
-import { prisma } from '../../config/db.js';
+import { prisma, withDbRetry } from '../../config/db.js';
 import { env } from '../../config/env.js';
 import { logger } from '../../config/logger.js';
 import { AppError } from '../../middleware/errorHandler.js';
@@ -77,7 +77,7 @@ export class WebhooksService {
           const razorpayPaymentId = paymentEntity.id;
           const method = paymentEntity.method || 'upi';
 
-          const order = await prisma.order.findFirst({
+          const order = await withDbRetry(() => prisma.order.findFirst({
             where: {
               OR: [
                 { razorpayOrderId },
@@ -85,7 +85,7 @@ export class WebhooksService {
               ],
             },
             include: { items: true },
-          });
+          }), 'webhooks.paymentCaptured.findOrder');
 
           if (order) {
             await prisma.$transaction(async (tx) => {
@@ -154,14 +154,14 @@ export class WebhooksService {
           const razorpayOrderId = paymentEntity.order_id;
           const razorpayPaymentId = paymentEntity.id;
 
-          const order = await prisma.order.findFirst({
+          const order = await withDbRetry(() => prisma.order.findFirst({
             where: {
               OR: [
                 { razorpayOrderId },
                 { id: paymentEntity.notes?.orderId },
               ],
             },
-          });
+          }), 'webhooks.paymentFailed.findOrder');
 
           if (order) {
             await prisma.payment.upsert({

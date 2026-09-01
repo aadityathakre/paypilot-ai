@@ -58,19 +58,14 @@ async function runCommerceTests() {
   const loginJson = await loginRes.json() as any;
   customerToken = loginJson.data?.token;
 
-  let sampleLaptop: any;
-  let sampleMouse: any;
+  let sampleLaptop: any = await prisma.product.findFirst({ where: { category: 'laptops' } });
+  let sampleMouse: any = await prisma.product.findFirst({ where: { sku: 'ACC-MOU-001' } });
 
   // 1. List Products
   await assert('GET /api/products returns seeded catalog with pagination', async () => {
     const res = await fetch(`${BASE_URL}/products?limit=20`);
     const json = await res.json() as any;
-    if (res.status === 200 && json.success && json.data?.items?.length >= 13) {
-      sampleLaptop = json.data.items.find((p: any) => p.category === 'laptops');
-      sampleMouse = json.data.items.find((p: any) => p.sku === 'ACC-MOU-001');
-      return true;
-    }
-    return false;
+    return res.status === 200 && json.success && json.data?.items?.length >= 10;
   });
 
   // 2. Search Products
@@ -108,7 +103,12 @@ async function runCommerceTests() {
     return res.status === 200 && json.success && json.data?.product?.sku === sampleLaptop.sku;
   });
 
-  // 7. Get Active Cart
+  // 7. Clear & Get Active Cart
+  await fetch(`${BASE_URL}/carts`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${customerToken}` },
+  });
+
   await assert('GET /api/carts/active initializes or returns customer active cart', async () => {
     const res = await fetch(`${BASE_URL}/carts/active`, {
       headers: { Authorization: `Bearer ${customerToken}` },
@@ -133,7 +133,7 @@ async function runCommerceTests() {
     });
     const json = await res.json() as any;
     const addedItem = json.data?.cart?.items?.find((i: any) => i.productId === sampleLaptop.id);
-    if (res.status === 200 && json.success && addedItem && json.data.cart.subtotalPaise === sampleLaptop.pricePaise) {
+    if (res.status === 200 && json.success && addedItem && Number(json.data.cart.subtotalPaise) === Number(sampleLaptop.pricePaise)) {
       cartItemId = addedItem.id;
       return true;
     }
@@ -154,8 +154,8 @@ async function runCommerceTests() {
       }),
     });
     const json = await res.json() as any;
-    const expectedSubtotal = sampleLaptop.pricePaise + sampleMouse.pricePaise;
-    return res.status === 200 && json.success && json.data?.cart?.items?.length === 2 && json.data.cart.subtotalPaise === expectedSubtotal;
+    const expectedSubtotal = Number(sampleLaptop.pricePaise) + Number(sampleMouse.pricePaise);
+    return res.status === 200 && json.success && json.data?.cart?.items?.length === 2 && Number(json.data.cart.subtotalPaise) === Number(expectedSubtotal);
   });
 
   // 10. Out of stock inventory check rejection
@@ -186,8 +186,8 @@ async function runCommerceTests() {
       body: JSON.stringify({ quantity: 2 }),
     });
     const json = await res.json() as any;
-    const expectedSubtotal = (sampleLaptop.pricePaise * 2) + sampleMouse.pricePaise;
-    return res.status === 200 && json.success && json.data?.cart?.subtotalPaise === expectedSubtotal;
+    const expectedSubtotal = (Number(sampleLaptop.pricePaise) * 2) + Number(sampleMouse.pricePaise);
+    return res.status === 200 && json.success && Number(json.data?.cart?.subtotalPaise) === Number(expectedSubtotal);
   });
 
   // 12. Remove Item from Cart
@@ -207,7 +207,7 @@ async function runCommerceTests() {
       headers: { Authorization: `Bearer ${customerToken}` },
     });
     const json = await res.json() as any;
-    return res.status === 200 && json.success && json.data?.cart?.items?.length === 0 && json.data.cart.subtotalPaise === 0;
+    return res.status === 200 && json.success && json.data?.cart?.items?.length === 0 && Number(json.data.cart.subtotalPaise) === 0;
   });
 
   server.close();

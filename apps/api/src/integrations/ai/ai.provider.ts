@@ -116,7 +116,8 @@ Return ONLY a valid JSON object with NO markdown formatting:
   "searchTerm": "search keyword" or null
 }`;
 
-    const models = ['gemini-3.6-flash', 'gemini-3.5-flash', 'gemini-3.5-flash-lite', 'gemini-2.5-pro'];
+    const primaryModel = env.AI_MODEL || 'gemini-3.6-flash';
+    const models = [primaryModel, 'gemini-3.5-flash'];
 
     for (const model of models) {
       try {
@@ -124,6 +125,7 @@ Return ONLY a valid JSON object with NO markdown formatting:
         const response = await fetch(url, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
+          signal: AbortSignal.timeout(6000),
           body: JSON.stringify({
             contents: [{ parts: [{ text: prompt }] }],
             generationConfig: {
@@ -196,7 +198,8 @@ Customer Current Input: "${message}"
 Task:
 ${contextPrompt}`;
 
-    const models = ['gemini-3.6-flash', 'gemini-3.5-flash', 'gemini-3.5-flash-lite'];
+    const primaryModel = env.AI_MODEL || 'gemini-3.6-flash';
+    const models = [primaryModel, 'gemini-3.5-flash'];
 
     for (const model of models) {
       try {
@@ -204,6 +207,7 @@ ${contextPrompt}`;
         const response = await fetch(url, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
+          signal: AbortSignal.timeout(6000),
           body: JSON.stringify({
             contents: [{ parts: [{ text: systemPrompt }] }],
             generationConfig: {

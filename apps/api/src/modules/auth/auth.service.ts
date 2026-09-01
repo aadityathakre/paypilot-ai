@@ -1,7 +1,7 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { UserRole } from '@prisma/client';
-import { prisma } from '../../config/db.js';
+import { prisma, withDbRetry } from '../../config/db.js';
 import { env } from '../../config/env.js';
 import { AppError } from '../../middleware/errorHandler.js';
 import { RegisterInput, LoginInput } from './auth.schema.js';
@@ -30,9 +30,9 @@ export class AuthService {
    * Register a new user (CUSTOMER or MERCHANT)
    */
   static async register(input: RegisterInput): Promise<AuthResponse> {
-    const existing = await prisma.user.findUnique({
+    const existing = await withDbRetry(() => prisma.user.findUnique({
       where: { email: input.email },
-    });
+    }), 'auth.register.lookupUser');
 
     if (existing) {
       throw new AppError('An account with this email address already exists.', 409, 'EMAIL_EXISTS');
@@ -40,21 +40,21 @@ export class AuthService {
 
     const passwordHash = await bcrypt.hash(input.password, 10);
 
-    const user = await prisma.user.create({
+    const user = await withDbRetry(() => prisma.user.create({
       data: {
         name: input.name,
         email: input.email,
         passwordHash,
         role: input.role,
       },
-    });
+    }), 'auth.register.createUser');
 
     let merchantId: string | undefined;
     let merchantData = null;
 
     // If registered as a merchant, create default Merchant organization and Policy
     if (input.role === UserRole.MERCHANT) {
-      const merchant = await prisma.merchant.create({
+      const merchant = await withDbRetry(() => prisma.merchant.create({
         data: {
           ownerUserId: user.id,
           name: input.merchantName || `${input.name}'s Store`,
@@ -70,7 +70,7 @@ export class AuthService {
             },
           },
         },
-      });
+      }), 'auth.register.createMerchant');
       merchantId = merchant.id;
       merchantData = { id: merchant.id, name: merchant.name, currency: merchant.currency };
     }
@@ -99,7 +99,7 @@ export class AuthService {
    * Authenticate user with email and password
    */
   static async login(input: LoginInput): Promise<AuthResponse> {
-    const user = await prisma.user.findUnique({
+    const user = await withDbRetry(() => prisma.user.findUnique({
       where: { email: input.email },
       include: {
         merchants: {
@@ -107,7 +107,7 @@ export class AuthService {
           take: 1,
         },
       },
-    });
+    }), 'auth.login.lookupUser');
 
     if (!user) {
       throw new AppError('Invalid email or password.', 401, 'INVALID_CREDENTIALS');
@@ -145,7 +145,7 @@ export class AuthService {
    * Retrieve current authenticated user profile
    */
   static async getMe(userId: string): Promise<SafeUser> {
-    const user = await prisma.user.findUnique({
+    const user = await withDbRetry(() => prisma.user.findUnique({
       where: { id: userId },
       include: {
         merchants: {
@@ -153,7 +153,7 @@ export class AuthService {
           take: 1,
         },
       },
-    });
+    }), 'auth.getMe.lookupUser');
 
     if (!user) {
       throw new AppError('User profile not found.', 404, 'USER_NOT_FOUND');
