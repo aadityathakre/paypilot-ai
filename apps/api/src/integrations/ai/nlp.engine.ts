@@ -6,6 +6,7 @@
 
 export interface NLPIntentResult {
   intent: 'greeting' | 'general_qa' | 'tech_advice' | 'policy_qa' | 'purchase_search' | 'chit_chat';
+  isBundleRequest?: boolean;
   category: string | null;
   budgetMax: number | null;
   budgetMin: number | null;
@@ -154,9 +155,30 @@ export class NLPEngine {
   }
 
   private static isPolicyQA(text: string): boolean {
+    // If query is asking to build/buy a bundle or search products, it is NOT policy QA!
+    if (
+      text.includes('bundle') ||
+      text.includes('bna') ||
+      text.includes('bana') ||
+      text.includes('buy') ||
+      text.includes('under') ||
+      text.includes('laptop') ||
+      text.includes('keyboard') ||
+      text.includes('mouse') ||
+      text.includes('monitor') ||
+      text.includes('chahiye') ||
+      text.includes('recommend') ||
+      text.includes('gadget') ||
+      text.includes('clothes') ||
+      text.includes('hoodie') ||
+      text.includes('electrical')
+    ) {
+      return false;
+    }
+
     const policyKeywords = [
       'policy', 'ceiling', 'spending limit', 'guardrail', 'guardrails',
-      '80000', '80k', 'max limit', 'maximum order', 'transaction limit',
+      'max limit', 'maximum order', 'transaction limit',
       'human confirmation', 'approval gate', 'razorpay verification', 'hmac'
     ];
     return policyKeywords.some((k) => text.includes(k));
@@ -212,13 +234,14 @@ export class NLPEngine {
 
   private static extractShoppingIntent(text: string): {
     isShopping: boolean;
+    isBundleRequest: boolean;
     category: string | null;
     budgetMax: number | null;
     useCases: string[];
     preferences: string[];
     searchTerm: string | null;
   } {
-    // 1. Detect explicit categories
+    // 1. Detect explicit categories across Electronics, Gadgets, Apparel & Electricals
     let category: string | null = null;
     let hasCategoryMention = false;
 
@@ -231,13 +254,31 @@ export class NLPEngine {
     } else if (text.includes('mouse') || text.includes('keyboard') || text.includes('keypad')) {
       category = 'keyboards_mice';
       hasCategoryMention = true;
-    } else if (text.includes('headphone') || text.includes('headset') || text.includes('audio') || text.includes('webcam') || text.includes('camera') || text.includes('mic')) {
+    } else if (text.includes('headphone') || text.includes('headset') || text.includes('earbud') || text.includes('audio') || text.includes('webcam') || text.includes('mic')) {
       category = 'audio_video';
       hasCategoryMention = true;
-    } else if (text.includes('charger') || text.includes('hub') || text.includes('adapter') || text.includes('stand') || text.includes('cable') || text.includes('accessories')) {
+    } else if (text.includes('gadget') || text.includes('watch') || text.includes('smartwatch') || text.includes('tablet') || text.includes('powerbank') || text.includes('tws') || text.includes('vr')) {
+      category = 'gadgets';
+      hasCategoryMention = true;
+    } else if (text.includes('hoodie') || text.includes('cloth') || text.includes('t-shirt') || text.includes('tee') || text.includes('backpack') || text.includes('bag') || text.includes('glasses') || text.includes('jacket')) {
+      category = 'apparel';
+      hasCategoryMention = true;
+    } else if (text.includes('electrical') || text.includes('light') || text.includes('surge') || text.includes('plug') || text.includes('extension') || text.includes('cable')) {
+      category = 'electricals';
+      hasCategoryMention = true;
+    } else if (text.includes('charger') || text.includes('hub') || text.includes('adapter') || text.includes('stand') || text.includes('accessories')) {
       category = 'accessories';
       hasCategoryMention = true;
     }
+
+    // 2. Detect Bundle Intent (e.g. "ek bundle bna ke do jisme ek laptop , ek keyboard or mouse ho under 80000")
+    const isBundleRequest = 
+      text.includes('bundle') || 
+      text.includes('bna') || 
+      text.includes('bana') || 
+      text.includes('combo') || 
+      text.includes('setup') || 
+      (text.includes('laptop') && (text.includes('keyboard') || text.includes('mouse')));
 
     // 2. Detect Shopping & Open-Ended Recommendation Triggers
     const shoppingTriggers = [
@@ -288,10 +329,11 @@ export class NLPEngine {
     if (text.includes('mechanical') || text.includes('tactile')) preferences.push('mechanical');
     if (text.includes('noise') || text.includes('anc')) preferences.push('active noise cancellation');
 
-    const isShopping = hasCategoryMention || isOpenEndedRecommendation || (hasShoppingTrigger && (budgetMax !== null || useCases.length > 0));
+    const isShopping = hasCategoryMention || isOpenEndedRecommendation || isBundleRequest || (hasShoppingTrigger && (budgetMax !== null || useCases.length > 0));
 
     return {
       isShopping,
+      isBundleRequest,
       category,
       budgetMax,
       useCases,

@@ -69,13 +69,13 @@ async function main() {
       maxUpsellDiscountBps: 1000,          // 10% max bundle discount
       upsellEnabled: true,
       paymentConfirmationRequired: true,
-      allowedCategories: ['laptops', 'monitors', 'keyboards_mice', 'audio_video', 'accessories'],
+      allowedCategories: ['laptops', 'monitors', 'keyboards_mice', 'audio_video', 'gadgets', 'apparel', 'electricals', 'accessories'],
       allowedAgentActions: ['SEARCH_CATALOG', 'RECOMMEND_PRODUCT', 'PROPOSE_UPSELL', 'CREATE_ORDER'],
     },
   });
   console.log(`✅ Created Merchant Policy: Max Order ₹${Number(policy.maxOrderValuePaise) / 100}`);
 
-  // 6. Seed Realistic Synthetic Products Catalog
+  // 6. Seed Realistic Synthetic Products Catalog across Electronics, Gadgets, Clothes & Accessories
   const productsData = [
     // Laptops
     {
@@ -116,7 +116,7 @@ async function main() {
       name: 'Creator Studio Max 16 (OLED)',
       category: 'laptops',
       description: 'Intel Core i9 13th Gen, 32GB RAM, 1TB NVMe SSD, 16" 4K OLED HDR Touchscreen, RTX 4070. Professional workstation for digital creators.',
-      pricePaise: BigInt(9499000), // ₹94,990 (Deliberately exceeds ₹80k policy ceiling for testing policy blocks!)
+      pricePaise: BigInt(9499000), // ₹94,990 (exceeds ceiling)
       stock: 8,
       merchantScore: 0.97,
       imageUrl: 'https://images.unsplash.com/photo-1525547719571-a2d4ac8945e2?w=800&auto=format&fit=crop&q=60',
@@ -172,14 +172,14 @@ async function main() {
     },
     {
       sku: 'ACC-MOU-003',
-      name: 'Precision Esports Ultra-Light Mouse',
+      name: 'Precision Ergonomic Wireless Mouse',
       category: 'keyboards_mice',
-      description: 'Ultralight 58g chassis, 26,000 DPI optical sensor, optical switches rated for 90M clicks, zero-drag paracord cable.',
-      pricePaise: BigInt(299000), // ₹2,990
-      stock: 45,
-      merchantScore: 0.90,
+      description: 'Precision optical tracking, dual Bluetooth + 2.4G, silent click buttons, rechargeable Li-ion battery.',
+      pricePaise: BigInt(199000), // ₹1,990
+      stock: 55,
+      merchantScore: 0.92,
       imageUrl: 'https://images.unsplash.com/photo-1527864550417-7fd91fc51a46?w=800&auto=format&fit=crop&q=60',
-      attributes: { weight: '58g', dpi: '26000 DPI', switchType: 'Optical', useCase: ['gaming', 'esports'] },
+      attributes: { type: 'Wireless Mouse', connectivity: 'Dual Mode', battery: 'Rechargeable', useCase: ['office', 'coding'] },
     },
 
     // Audio & Video
@@ -204,6 +204,133 @@ async function main() {
       merchantScore: 0.89,
       imageUrl: 'https://images.unsplash.com/photo-1588872657578-7efd1f1555ed?w=800&auto=format&fit=crop&q=60',
       attributes: { resolution: '1080p 60FPS', mic: 'Dual Stereo', fieldOfView: '90 degrees', useCase: ['wfh-calls', 'streaming', 'teaching'] },
+    },
+
+    // Electronics & Gadgets
+    {
+      sku: 'GAD-WAT-001',
+      name: 'Pro Fitness AMOLED Smartwatch 2.0',
+      category: 'gadgets',
+      description: '1.43" HD AMOLED Display, Continuous Heart Rate & SpO2 Monitor, Built-in GPS, 100+ Sports Modes, IP68 Waterproof, 12-day battery.',
+      pricePaise: BigInt(499000), // ₹4,990
+      stock: 45,
+      merchantScore: 0.94,
+      imageUrl: 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=800&auto=format&fit=crop&q=60',
+      attributes: { display: 'AMOLED', battery: '12 days', sensors: 'GPS + SpO2', rating: 'IP68', useCase: ['fitness', 'gadget', 'lifestyle'] },
+    },
+    {
+      sku: 'GAD-TWS-002',
+      name: 'True Wireless Active ANC Earbuds',
+      category: 'gadgets',
+      description: 'Custom 10mm Graphene Drivers, Active Noise Cancellation, Low-Latency Game Mode, IPX5 Sweatproof, 32-hour total playback with USB-C case.',
+      pricePaise: BigInt(399000), // ₹3,990
+      stock: 50,
+      merchantScore: 0.93,
+      imageUrl: 'https://images.unsplash.com/photo-1590658268037-6bf12165a8df?w=800&auto=format&fit=crop&q=60',
+      attributes: { anc: '30dB ANC', battery: '32 hours', latency: '40ms', useCase: ['music', 'calls', 'gaming'] },
+    },
+    {
+      sku: 'GAD-TAB-003',
+      name: '11" Ultra Retina Tablet 128GB',
+      category: 'gadgets',
+      description: '11-inch 2.5K Retina Display (90Hz), Octa-Core Processor, 6GB RAM, 128GB Storage, Quad Speakers with Dolby Atmos, Stylus support.',
+      pricePaise: BigInt(2899000), // ₹28,990
+      stock: 18,
+      merchantScore: 0.95,
+      imageUrl: 'https://images.unsplash.com/photo-1544244015-0df4b3ffc6b0?w=800&auto=format&fit=crop&q=60',
+      attributes: { screen: '11 inch 2.5K', storage: '128GB', ram: '6GB', audio: 'Quad Speakers', useCase: ['media', 'reading', 'drawing'] },
+    },
+    {
+      sku: 'GAD-POW-004',
+      name: '20000mAh 45W Fast Charging Powerbank',
+      category: 'gadgets',
+      description: 'High-density 20000mAh Lithium-Polymer battery, 45W Power Delivery for laptops & phones, LED percentage display, Pass-through charging.',
+      pricePaise: BigInt(249000), // ₹2,490
+      stock: 80,
+      merchantScore: 0.91,
+      imageUrl: 'https://images.unsplash.com/photo-1609592424109-dd9892f1b177?w=800&auto=format&fit=crop&q=60',
+      attributes: { capacity: '20000mAh', power: '45W PD', ports: '3 Ports', useCase: ['travel', 'emergency', 'power'] },
+    },
+
+    // Clothes, Apparel & Developer Gear
+    {
+      sku: 'APP-HOD-001',
+      name: 'Developer Heavyweight Organic Hoodie (Black)',
+      category: 'apparel',
+      description: 'Premium 400 GSM 100% Organic Combed Cotton fleece hoodie. Relaxed fit, double-lined hood, hidden internal phone pocket. Built for long coding nights.',
+      pricePaise: BigInt(199000), // ₹1,990
+      stock: 50,
+      merchantScore: 0.95,
+      imageUrl: 'https://images.unsplash.com/photo-1556905055-8f358a7a47b2?w=800&auto=format&fit=crop&q=60',
+      attributes: { material: '100% Cotton', weight: '400 GSM', fit: 'Relaxed', color: 'Midnight Black', useCase: ['clothing', 'wfh', 'casual'] },
+    },
+    {
+      sku: 'APP-BAG-002',
+      name: 'Anti-Theft Waterproof Tech Backpack 25L',
+      category: 'apparel',
+      description: 'Water-resistant 900D Oxford fabric, TSA-approved 180-degree flat opening, padded compartment for 16" laptops, external USB charging port, hidden anti-theft back pocket.',
+      pricePaise: BigInt(249000), // ₹2,490
+      stock: 40,
+      merchantScore: 0.94,
+      imageUrl: 'https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=800&auto=format&fit=crop&q=60',
+      attributes: { capacity: '25L', laptopSize: 'Up to 16"', feature: 'Anti-Theft + USB', useCase: ['travel', 'commute', 'gear'] },
+    },
+    {
+      sku: 'APP-TEE-003',
+      name: '"Eat Sleep Code Repeat" Premium Graphic Tee',
+      category: 'apparel',
+      description: '100% Super-Combed Bio-Washed Cotton T-Shirt. Breathable 180 GSM fabric, high-density durable screen print.',
+      pricePaise: BigInt(79900), // ₹799
+      stock: 100,
+      merchantScore: 0.90,
+      imageUrl: 'https://images.unsplash.com/photo-1521572267360-ee0c2909d518?w=800&auto=format&fit=crop&q=60',
+      attributes: { material: 'Bio-Washed Cotton', fit: 'Regular', print: 'High-Density', useCase: ['casual', 'clothes', 'developer'] },
+    },
+    {
+      sku: 'APP-GLS-004',
+      name: 'Blue Light Blocking Programmer Glasses',
+      category: 'apparel',
+      description: 'Anti-reflective CR-39 lenses blocking 99% harmful blue light (400-450nm). Lightweight TR90 matte frame, zero distortion, reduces eyestrain.',
+      pricePaise: BigInt(119000), // ₹1,190
+      stock: 75,
+      merchantScore: 0.93,
+      imageUrl: 'https://images.unsplash.com/photo-1572635196237-14b3f281503f?w=800&auto=format&fit=crop&q=60',
+      attributes: { blockRating: '99% Blue Light', frame: 'TR90 Lightweight', useCase: ['eyestrain', 'screen-time', 'coding'] },
+    },
+
+    // Electricals & Smart Home
+    {
+      sku: 'ELE-LGT-001',
+      name: 'RGBIC Monitor Screen Lightbar with Remote',
+      category: 'electricals',
+      description: 'Asymmetric optical design illuminating desk without screen glare. Touch controls, wireless rotary dial, 16M RGB ambient backlighting, CRI > 95.',
+      pricePaise: BigInt(249000), // ₹2,490
+      stock: 35,
+      merchantScore: 0.93,
+      imageUrl: 'https://images.unsplash.com/photo-1507499739999-097706ad8914?w=800&auto=format&fit=crop&q=60',
+      attributes: { illumination: 'No Glare', rgb: 'RGBIC Backlight', control: 'Rotary Wireless', useCase: ['desk-setup', 'electricals', 'lighting'] },
+    },
+    {
+      sku: 'ELE-SUR-002',
+      name: '8-Outlet Heavy Duty Surge Protector Board',
+      category: 'electricals',
+      description: '2500W / 10A Master Surge Protector with 525 Joules protection rating. 8 universal AC sockets + 3 USB ports, flame-retardant PC casing, 2m heavy cable.',
+      pricePaise: BigInt(149000), // ₹1,490
+      stock: 60,
+      merchantScore: 0.92,
+      imageUrl: 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=800&auto=format&fit=crop&q=60',
+      attributes: { power: '2500W 10A', sockets: 8, joules: '525J', cable: '2 Meter Heavy', useCase: ['electricals', 'power-safety', 'setup'] },
+    },
+    {
+      sku: 'ELE-PLG-003',
+      name: '16A Smart WiFi Plug with Energy Monitor',
+      category: 'electricals',
+      description: '16A High-Power Smart WiFi Plug for ACs, Geysers & Setup Rigs. Real-time electricity consumption monitoring, timer schedules, Alexa & Google Home compatible.',
+      pricePaise: BigInt(99000), // ₹990
+      stock: 90,
+      merchantScore: 0.91,
+      imageUrl: 'https://images.unsplash.com/photo-1558002038-1055907df827?w=800&auto=format&fit=crop&q=60',
+      attributes: { rating: '16A High Power', feature: 'Real-time Energy Monitor', voice: 'Alexa & Google', useCase: ['smart-home', 'electricals', 'automation'] },
     },
 
     // Accessories

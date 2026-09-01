@@ -20,7 +20,8 @@ import {
   Minus,
   Loader2,
   Mic,
-  MicOff
+  MicOff,
+  Layers
 } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -60,12 +61,28 @@ interface UpsellData {
   discountedPriceInr: number;
 }
 
+interface BundleData {
+  title: string;
+  products: Array<{
+    id: string;
+    sku: string;
+    name: string;
+    category: string;
+    priceInr: number;
+    imageUrl?: string | null;
+  }>;
+  totalPriceInr: number;
+  discountedPriceInr: number;
+  savingsInr: number;
+}
+
 interface ChatMessage {
   id: string;
   role: 'user' | 'assistant';
   text: string;
   recommendations?: RankedRecommendation[];
   upsell?: UpsellData | null;
+  bundle?: BundleData | null;
   timestamp: string;
 }
 
@@ -231,6 +248,7 @@ export const HomePage: React.FC = () => {
             text: json.data.explanation || 'Here is what I found:',
             recommendations: json.data.recommendations || [],
             upsell: json.data.suggestedUpsell || null,
+            bundle: json.data.suggestedBundle || null,
             timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
           };
           setMessages((prev) => [...prev, assistantMsg]);
@@ -253,6 +271,7 @@ export const HomePage: React.FC = () => {
             text: json.data.explanation || 'Here is what I found:',
             recommendations: json.data.recommendations || [],
             upsell: json.data.suggestedUpsell || null,
+            bundle: json.data.suggestedBundle || null,
             timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
           };
           setMessages((prev) => [...prev, assistantMsg]);
@@ -283,6 +302,27 @@ export const HomePage: React.FC = () => {
       if (success) {
         setAddedProductIds((prev) => new Set([...prev, productId]));
         setCartSuccessMessage(`Added "${productName}" to cart!`);
+        setTimeout(() => setCartSuccessMessage(null), 3500);
+      }
+    } finally {
+      setLoadingProductId(null);
+    }
+  };
+
+  const handleAddBundleToCart = async (bundle: BundleData) => {
+    if (loadingProductId) return;
+    setLoadingProductId('bundle_all');
+    try {
+      let count = 0;
+      for (const prod of bundle.products) {
+        const ok = await addItem(prod.id, 1);
+        if (ok) {
+          count++;
+          setAddedProductIds((prev) => new Set([...prev, prod.id]));
+        }
+      }
+      if (count > 0) {
+        setCartSuccessMessage(`Added complete Setup Bundle (${count} items) to cart!`);
         setTimeout(() => setCartSuccessMessage(null), 3500);
       }
     } finally {
@@ -565,6 +605,64 @@ export const HomePage: React.FC = () => {
                           <span>+ Add Bundle</span>
                         )}
                       </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Render Complete Setup Bundle Card if present */}
+                {msg.bundle && msg.bundle.products && msg.bundle.products.length > 0 && (
+                  <div className="w-full pl-10 pt-3">
+                    <div className="p-4 rounded-xl bg-gradient-to-r from-slate-900 via-brand-950/60 to-indigo-950/80 border border-brand-500/40 shadow-glow-cyan space-y-3">
+                      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                        <div className="flex items-center gap-2">
+                          <div className="p-2 rounded-lg bg-brand-500/20 text-brand-400 border border-brand-500/30">
+                            <Layers className="w-4 h-4" />
+                          </div>
+                          <div>
+                            <h4 className="text-xs font-bold text-white uppercase tracking-wider">
+                              {msg.bundle.title}
+                            </h4>
+                            <p className="text-[11px] text-emerald-400 font-semibold">
+                              Special 7% Bundle Savings: ₹{msg.bundle.savingsInr.toLocaleString('en-IN')} OFF!
+                            </p>
+                          </div>
+                        </div>
+
+                        <button
+                          disabled={loadingProductId === 'bundle_all'}
+                          onClick={() => handleAddBundleToCart(msg.bundle!)}
+                          className="px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-brand-600 hover:from-emerald-500 hover:to-brand-500 text-white text-xs font-extrabold shrink-0 transition-all shadow-glow-cyan flex items-center gap-1.5 disabled:opacity-60"
+                        >
+                          {loadingProductId === 'bundle_all' ? (
+                            <>
+                              <Loader2 className="w-3.5 h-3.5 animate-spin text-white" />
+                              <span>Adding Bundle...</span>
+                            </>
+                          ) : (
+                            <>
+                              <ShoppingCart className="w-3.5 h-3.5" />
+                              <span>➕ Add Complete Setup Bundle (₹{msg.bundle.discountedPriceInr.toLocaleString('en-IN')})</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-1">
+                        {msg.bundle.products.map((p, idx) => (
+                          <div key={idx} className="p-2.5 rounded-lg bg-slate-950/80 border border-white/10 flex items-center gap-2.5">
+                            {p.imageUrl ? (
+                              <img src={p.imageUrl} alt={p.name} className="w-10 h-10 rounded-md object-cover border border-white/10" />
+                            ) : (
+                              <Package className="w-8 h-8 text-slate-500 shrink-0" />
+                            )}
+                            <div className="min-w-0 flex-1">
+                              <span className="text-[9px] font-mono text-brand-300 uppercase block">{p.category}</span>
+                              <h5 className="text-[11px] font-bold text-white truncate">{p.name}</h5>
+                              <span className="text-[11px] text-slate-300 font-mono">₹{p.priceInr.toLocaleString('en-IN')}</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   </div>
                 )}

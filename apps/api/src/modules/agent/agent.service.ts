@@ -167,8 +167,38 @@ export class AgentService {
       }
     }
 
+    // 3b. Setup Bundle Generation (e.g. Laptop + Keyboard + Mouse)
+    let suggestedBundle: any = null;
+    const isBundleRequest = intent.isBundleRequest || (isShopping && (userMessage.includes('bundle') || userMessage.includes('bna') || userMessage.includes('bana') || (userMessage.includes('laptop') && userMessage.includes('keyboard'))));
+
+    if (isBundleRequest) {
+      const maxB = intent.budgetMax || 80000;
+      const laptops = await ProductsService.listProducts({ category: 'laptops', maxPrice: maxB, page: 1, limit: 5, sortBy: 'score_desc' });
+      const keyboards = await ProductsService.listProducts({ category: 'keyboards_mice', search: 'keyboard', page: 1, limit: 5, sortBy: 'score_desc' });
+      const mice = await ProductsService.listProducts({ category: 'keyboards_mice', search: 'mouse', page: 1, limit: 5, sortBy: 'score_desc' });
+
+      const laptop = laptops.items.find((l) => l.priceInr < maxB - 4000) || laptops.items[0];
+      const keyboard = keyboards.items.find((k) => k.sku.includes('KEY') || k.name.toLowerCase().includes('keyboard')) || keyboards.items[0];
+      const mouse = mice.items.find((m) => m.sku.includes('MOU') || m.name.toLowerCase().includes('mouse')) || mice.items[0];
+
+      if (laptop && keyboard && mouse) {
+        const totalPriceInr = laptop.priceInr + keyboard.priceInr + mouse.priceInr;
+        const savingsInr = Math.round(totalPriceInr * 0.07);
+        const discountedPriceInr = totalPriceInr - savingsInr;
+
+        suggestedBundle = {
+          title: "Complete Verified Setup Bundle",
+          products: [laptop, keyboard, mouse],
+          totalPriceInr,
+          discountedPriceInr,
+          savingsInr,
+          discountBps: 700,
+        };
+      }
+    }
+
     // 4. Grounded or Conversational Natural-Language Explanation with History
-    const explanation = await AIProvider.generateExplanation(userMessage, intent, rankedProducts, history);
+    const explanation = await AIProvider.generateExplanation(userMessage, intent, rankedProducts, history, suggestedBundle);
 
     // 5. Record Assistant Message in DB
     await prisma.agentMessage.create({
@@ -185,6 +215,7 @@ export class AgentService {
             reasons: r.reasons,
           })),
           suggestedUpsell: suggestedUpsell ? { sku: suggestedUpsell.product.sku } : null,
+          suggestedBundle: suggestedBundle ? { title: suggestedBundle.title, total: suggestedBundle.discountedPriceInr } : null,
         } as any,
       },
     });
@@ -203,6 +234,7 @@ export class AgentService {
           intent,
           topProductSku: rankedProducts[0]?.product?.sku || null,
           upsellSku: suggestedUpsell?.product?.sku || null,
+          hasBundle: !!suggestedBundle,
         } as any,
       },
     });
@@ -212,6 +244,7 @@ export class AgentService {
       intent,
       recommendations: rankedProducts.slice(0, 4), // top 4 recommendations
       suggestedUpsell,
+      suggestedBundle,
       explanation,
       nextAction: rankedProducts.length > 0 ? 'REVIEW_RECOMMENDATIONS' : 'REVIEW_RECOMMENDATIONS',
     };

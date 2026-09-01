@@ -2,6 +2,7 @@ import { FormattedProduct } from '../../modules/products/products.service.js';
 
 export interface StructuredIntent {
   intent: 'greeting' | 'general_qa' | 'policy_qa' | 'purchase_search' | 'recommendation' | 'product_inquiry' | 'comparison';
+  isBundleRequest?: boolean;
   category: string | null;
   budgetMax: number | null; // Max price in INR
   budgetMin: number | null;
@@ -16,6 +17,15 @@ export interface RankedProduct {
   score: number; // 0.0 to 1.0
   reasons: string[];
   tradeOffs: string[];
+}
+
+export interface BundleProposal {
+  title: string;
+  products: FormattedProduct[];
+  totalPriceInr: number;
+  discountedPriceInr: number;
+  savingsInr: number;
+  discountBps: number;
 }
 
 export interface UpsellProposal {
@@ -33,6 +43,7 @@ export interface AgentDecisionResponse {
   intent: StructuredIntent;
   recommendations: RankedProduct[];
   suggestedUpsell: UpsellProposal | null;
+  suggestedBundle?: BundleProposal | null;
   explanation: string;
   nextAction: 'REVIEW_RECOMMENDATIONS' | 'ADD_TO_CART' | 'PROCEED_CHECKOUT';
 }

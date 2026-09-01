@@ -30,6 +30,7 @@ export class AIProvider {
 
     return {
       intent: nlpResult.intent as any,
+      isBundleRequest: nlpResult.isBundleRequest,
       category: nlpResult.category,
       budgetMax: nlpResult.budgetMax,
       budgetMin: nlpResult.budgetMin,
@@ -47,8 +48,13 @@ export class AIProvider {
     userMessage: string,
     intent: StructuredIntent,
     rankedProducts: RankedProduct[],
-    history: Array<{ role: string; content: string }> = []
+    history: Array<{ role: string; content: string }> = [],
+    suggestedBundle?: any
   ): Promise<string> {
+    if (suggestedBundle && suggestedBundle.products && suggestedBundle.products.length >= 3) {
+      return `Bilkul! Aapke budget ke under humne ek Complete Verified Workstation Bundle prepare kiya hai:\n\n1. 💻 **${suggestedBundle.products[0].name}** (₹${suggestedBundle.products[0].priceInr.toLocaleString('en-IN')})\n2. ⌨️ **${suggestedBundle.products[1].name}** (₹${suggestedBundle.products[1].priceInr.toLocaleString('en-IN')})\n3. 🖱️ **${suggestedBundle.products[2].name}** (₹${suggestedBundle.products[2].priceInr.toLocaleString('en-IN')})\n\nTotal Value: ~~₹${suggestedBundle.totalPriceInr.toLocaleString('en-IN')}~~ → **₹${suggestedBundle.discountedPriceInr.toLocaleString('en-IN')}** (Aap ₹${suggestedBundle.savingsInr.toLocaleString('en-IN')} save kar rahe hain!). Aap niche "+ Add Complete Setup Bundle" button se sabhi items ek saath cart mein add kar sakte hain!`;
+    }
+
     // 1. Try Generative LLM for natural, dynamic, human conversation
     if (env.AI_API_KEY && !env.AI_API_KEY.includes('placeholder')) {
       try {
@@ -71,7 +77,7 @@ export class AIProvider {
 
     // 3. If Purchase Search with 0 matches
     if (rankedProducts.length === 0) {
-      return `I searched our verified catalog for "${userMessage}", but couldn't find an exact match under your specified criteria.\n\n💡 **Tip**: Try searching for **Laptops**, **Monitors**, **Keyboards & Mice**, **Audio & Video**, or **Accessories**, or increase your budget range!`;
+      return `I searched our verified catalog for "${userMessage}", but couldn't find an exact match under your specified criteria.\n\n💡 **Tip**: Try searching for **Laptops**, **Monitors**, **Keyboards & Mice**, **Electronics & Gadgets**, **Apparel**, or **Electricals**, or adjust your budget!`;
     }
 
     // 4. Grounded Top Recommendation fallback
