@@ -57,12 +57,16 @@ export class AgentService {
   ): Promise<AgentDecisionResponse> {
     const session = await prisma.agentSession.findUnique({
       where: { id: sessionId },
+      include: {
+        messages: { orderBy: { createdAt: 'asc' }, take: 10 },
+      },
     });
 
     if (!session || session.customerId !== customerId) {
       throw new AppError('Agent session not found or unauthorized.', 404, 'SESSION_NOT_FOUND');
     }
 
+    const history = session.messages.map((m) => ({ role: m.role, content: m.content }));
     const startTime = Date.now();
 
     // 1. Record customer user message
@@ -74,8 +78,8 @@ export class AgentService {
       },
     });
 
-    // 2. Intent Parsing
-    const intent = await AIProvider.parseIntent(userMessage);
+    // 2. Intent Parsing with context history
+    const intent = await AIProvider.parseIntent(userMessage, history);
 
     await prisma.agentEvent.create({
       data: {
@@ -89,13 +93,13 @@ export class AgentService {
       },
     });
 
-    // 3. Check if intent is conversational (Greeting, General Q&A, Policy Q&A)
-    const isConversational = intent.intent === 'greeting' || intent.intent === 'general_qa' || intent.intent === 'policy_qa';
+    // 3. Only query verified catalog if intent is explicitly purchase_search
+    const isShopping = intent.intent === 'purchase_search';
 
     let rankedProducts: any[] = [];
     let suggestedUpsell: any = null;
 
-    if (!isConversational) {
+    if (isShopping) {
       // Invoke Verified Catalog Tool (PostgreSQL DB Query)
       const toolStart = Date.now();
       const catalogResults = await ProductsService.listProducts({
@@ -163,8 +167,8 @@ export class AgentService {
       }
     }
 
-    // 4. Grounded or Conversational Natural-Language Explanation
-    const explanation = await AIProvider.generateExplanation(userMessage, intent, rankedProducts);
+    // 4. Grounded or Conversational Natural-Language Explanation with History
+    const explanation = await AIProvider.generateExplanation(userMessage, intent, rankedProducts, history);
 
     // 5. Record Assistant Message in DB
     await prisma.agentMessage.create({

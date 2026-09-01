@@ -5,29 +5,28 @@ import { NLPEngine, NLPIntentResult } from './nlp.engine.js';
 
 export class AIProvider {
   /**
-   * Parse natural-language customer message into structured intent fields using NLP
+   * Parse natural-language customer message into structured intent fields
    */
-  static async parseIntent(userMessage: string): Promise<StructuredIntent> {
+  static async parseIntent(
+    userMessage: string,
+    history: Array<{ role: string; content: string }> = []
+  ): Promise<StructuredIntent> {
     const trimmed = userMessage.trim();
 
-    // 1. Run Advanced NLP Engine
-    const nlpResult: NLPIntentResult = NLPEngine.analyze(trimmed);
-
-    // 2. If Gemini API key is configured and valid, attempt LLM parsing
-    if (
-      env.AI_API_KEY &&
-      env.AI_API_KEY.startsWith('AIza') &&
-      !env.AI_API_KEY.includes('placeholder')
-    ) {
+    // 1. If Gemini API key is configured, attempt intelligent LLM intent classification
+    if (env.AI_API_KEY && !env.AI_API_KEY.includes('placeholder')) {
       try {
-        const geminiIntent = await this.callGeminiIntentParser(trimmed);
+        const geminiIntent = await this.callGeminiIntentParser(trimmed, history);
         if (geminiIntent) {
           return geminiIntent;
         }
       } catch (error) {
-        logger.warn({ error }, 'Gemini API call failed, falling back to NLP Engine');
+        logger.warn({ error }, 'Gemini intent parser failed, falling back to NLP Engine');
       }
     }
+
+    // 2. Rule-based / NLP engine analysis
+    const nlpResult: NLPIntentResult = NLPEngine.analyze(trimmed);
 
     return {
       intent: nlpResult.intent as any,
@@ -47,9 +46,22 @@ export class AIProvider {
   static async generateExplanation(
     userMessage: string,
     intent: StructuredIntent,
-    rankedProducts: RankedProduct[]
+    rankedProducts: RankedProduct[],
+    history: Array<{ role: string; content: string }> = []
   ): Promise<string> {
-    // 1. If Conversational (Greeting, Tech Advice, Policy QA, General QA, Chit Chat)
+    // 1. Try Generative LLM for natural, dynamic, human conversation
+    if (env.AI_API_KEY && !env.AI_API_KEY.includes('placeholder')) {
+      try {
+        const llmResponse = await this.callGeminiDialogue(userMessage, intent, rankedProducts, history);
+        if (llmResponse) {
+          return llmResponse;
+        }
+      } catch (error) {
+        logger.warn({ error }, 'Gemini dialogue generation failed, using NLP engine response');
+      }
+    }
+
+    // 2. If Conversational (Greeting, Tech Advice, Policy QA, General QA, Chit Chat, Frustration, Dismissal)
     if (intent.intent !== 'purchase_search') {
       const nlp = NLPEngine.analyze(userMessage);
       if (nlp.conversationalResponse) {
@@ -57,54 +69,44 @@ export class AIProvider {
       }
     }
 
-    // 2. If Purchase Search with 0 matches
+    // 3. If Purchase Search with 0 matches
     if (rankedProducts.length === 0) {
-      return `I searched our verified catalog for "${userMessage}", but couldn't find an exact match under your specified criteria.\n\n💡 **Tip**: Try browsing our available categories: **Laptops**, **Monitors**, **Keyboards & Mice**, **Audio & Video**, or **Accessories**, or increase your budget range!`;
+      return `I searched our verified catalog for "${userMessage}", but couldn't find an exact match under your specified criteria.\n\n💡 **Tip**: Try searching for **Laptops**, **Monitors**, **Keyboards & Mice**, **Audio & Video**, or **Accessories**, or increase your budget range!`;
     }
 
-    // 3. Grounded Top Recommendation
+    // 4. Grounded Top Recommendation fallback
     const topPick = rankedProducts[0].product;
     const topReasons = rankedProducts[0].reasons.join(', ');
-
-    if (
-      env.AI_API_KEY &&
-      env.AI_API_KEY.startsWith('AIza') &&
-      !env.AI_API_KEY.includes('placeholder')
-    ) {
-      try {
-        const explanation = await this.callGeminiExplanation(userMessage, topPick, topReasons);
-        if (explanation) return explanation;
-      } catch (error) {
-        logger.warn({ error }, 'Gemini explanation failed, using grounded template');
-      }
-    }
-
     return `Based on your requirements, I recommend the **${topPick.name}** for **₹${(topPick.pricePaise / 100).toLocaleString('en-IN')}**.\n\nIt matches your needs because it is **${topReasons}**. You can add it directly to your cart below or explore the complementary bundle option!`;
   }
 
   /**
    * Call Google Gemini API for structured JSON intent extraction
    */
-  private static async callGeminiIntentParser(message: string): Promise<StructuredIntent | null> {
-    const prompt = `You are a natural language e-commerce shopping intent parser.
+  private static async callGeminiIntentParser(
+    message: string,
+    _history: Array<{ role: string; content: string }>
+  ): Promise<StructuredIntent | null> {
+    const prompt = `You are a natural language understanding engine for PayPilot AI.
 Analyze this user message: "${message}"
 
 Determine if the user is:
-1. "greeting": Saying hello, hi, how are you, asking what you can do in any language (English, Hindi, Hinglish e.g. 'kaise ho', 'kya haal hai')
-2. "general_qa": Asking general technical questions (e.g. "what is github", "explain python")
-3. "policy_qa": Asking about spending limits, guardrails, policy ceilings, or razorpay verification
-4. "purchase_search": Explicitly looking for products, buying, requesting recommendations, specifying budget or categories
+- "chit_chat": Casual chat, greetings (in English or Hinglish e.g. "hi", "kaise ho", "kya haal hai", "are you dumb", "nothing", "cool", "thanks", "bye")
+- "general_qa": Asking general knowledge, programming or software questions (e.g. "what is github", "explain python", "what is machine learning")
+- "tech_advice": Asking technical hardware advice (e.g. "is 16GB RAM enough", "OLED vs IPS")
+- "policy_qa": Asking about payment limits, policy guardrails, ₹80k spending ceiling, or Razorpay verification
+- "purchase_search": Explicitly seeking to discover, compare, recommend, or buy tech hardware (laptops, monitors, keyboards, mice, headphones, webcams, accessories)
 
-Available categories in our catalog:
+Available catalog categories:
 - "laptops"
 - "monitors"
 - "keyboards_mice"
 - "audio_video"
 - "accessories"
 
-Return ONLY a valid JSON object matching this schema with NO markdown wrapping:
+Return ONLY a valid JSON object with NO markdown formatting:
 {
-  "intent": "greeting" | "general_qa" | "policy_qa" | "purchase_search",
+  "intent": "chit_chat" | "general_qa" | "tech_advice" | "policy_qa" | "purchase_search",
   "category": "laptops" | "monitors" | "keyboards_mice" | "audio_video" | "accessories" | null,
   "budgetMax": number in INR (e.g. 70000) or null,
   "budgetMin": number in INR or null,
@@ -114,76 +116,113 @@ Return ONLY a valid JSON object matching this schema with NO markdown wrapping:
   "searchTerm": "search keyword" or null
 }`;
 
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${env.AI_MODEL || 'gemini-2.5-flash'}:generateContent?key=${env.AI_API_KEY}`;
+    const models = ['gemini-3.6-flash', 'gemini-3.5-flash', 'gemini-3.5-flash-lite', 'gemini-2.5-pro'];
 
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: {
-          responseMimeType: 'application/json',
-          temperature: 0.1,
-        },
-      }),
-    });
+    for (const model of models) {
+      try {
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${env.AI_API_KEY}`;
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: {
+              responseMimeType: 'application/json',
+              temperature: 0.1,
+            },
+          }),
+        });
 
-    if (!response.ok) {
-      const errText = await response.text();
-      logger.warn({ status: response.status, errText }, 'Gemini API returned error');
-      return null;
+        if (response.ok) {
+          const data = (await response.json()) as any;
+          const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+          if (text) {
+            const parsed = JSON.parse(text);
+            return {
+              intent: parsed.intent || 'purchase_search',
+              category: parsed.category || null,
+              budgetMax: parsed.budgetMax ? Number(parsed.budgetMax) : null,
+              budgetMin: parsed.budgetMin ? Number(parsed.budgetMin) : null,
+              useCases: Array.isArray(parsed.useCases) ? parsed.useCases : [],
+              preferences: Array.isArray(parsed.preferences) ? parsed.preferences : [],
+              constraints: Array.isArray(parsed.constraints) ? parsed.constraints : [],
+              searchTerm: parsed.searchTerm || null,
+            };
+          }
+        }
+      } catch {
+        // try next model
+      }
     }
 
-    const data = (await response.json()) as any;
-    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (!text) return null;
-
-    try {
-      const parsed = JSON.parse(text);
-      return {
-        intent: parsed.intent || 'purchase_search',
-        category: parsed.category || null,
-        budgetMax: parsed.budgetMax ? Number(parsed.budgetMax) : null,
-        budgetMin: parsed.budgetMin ? Number(parsed.budgetMin) : null,
-        useCases: Array.isArray(parsed.useCases) ? parsed.useCases : [],
-        preferences: Array.isArray(parsed.preferences) ? parsed.preferences : [],
-        constraints: Array.isArray(parsed.constraints) ? parsed.constraints : [],
-        searchTerm: parsed.searchTerm || null,
-      };
-    } catch {
-      return null;
-    }
+    return null;
   }
 
   /**
-   * Call Gemini to synthesize a concise, grounded explanation
+   * Multi-turn Dialogue Generation with Gemini
    */
-  private static async callGeminiExplanation(
+  private static async callGeminiDialogue(
     message: string,
-    product: any,
-    reasons: string
+    intent: StructuredIntent,
+    rankedProducts: RankedProduct[],
+    history: Array<{ role: string; content: string }>
   ): Promise<string | null> {
-    const prompt = `You are PayPilot, a helpful e-commerce AI assistant.
-Customer asked: "${message}"
-Recommended Product: "${product.name}" (Price: ₹${(product.pricePaise / 100).toLocaleString('en-IN')})
-Verified Match Reasons: ${reasons}
-Attributes: ${JSON.stringify(product.attributes)}
+    const recentHistory = history.slice(-6).map((m) => `${m.role === 'USER' ? 'User' : 'PayPilot'}: ${m.content}`).join('\n');
 
-Write a concise 2-sentence explanation of why this product fits their intent. Do NOT invent prices or specs not listed above.`;
+    let contextPrompt = '';
+    if (intent.intent === 'purchase_search' && rankedProducts.length > 0) {
+      const topProduct = rankedProducts[0].product;
+      contextPrompt = `The customer is looking to buy/discover hardware.
+Verified Top Catalog Match from PostgreSQL:
+- Name: "${topProduct.name}"
+- Price: ₹${(topProduct.pricePaise / 100).toLocaleString('en-IN')}
+- Specs: ${JSON.stringify(topProduct.attributes)}
+- Match Reasons: ${rankedProducts[0].reasons.join(', ')}
 
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${env.AI_MODEL || 'gemini-2.5-flash'}:generateContent?key=${env.AI_API_KEY}`;
+Explain in 2-3 natural sentences why this product is recommended. Do NOT invent prices or specs.`;
+    } else {
+      contextPrompt = `The customer is chatting or asking a question (Intent: ${intent.intent}).
+Respond in a natural, polite, helpful, and human way. If they talk in Hinglish/Hindi, reply warmly in conversational Hinglish/English. If they ask a general/software question, answer helpfully and mention you can help with tech hardware gear if they need any.`;
+    }
 
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { temperature: 0.3 },
-      }),
-    });
+    const systemPrompt = `You are PayPilot AI, an intelligent, charming, and helpful agentic commerce assistant built for Razorpay Track 1.
+You speak like a real human: friendly, concise, and smart.
 
-    if (!response.ok) return null;
-    const data = (await response.json()) as any;
-    return data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || null;
+Recent Conversation History:
+${recentHistory}
+
+Customer Current Input: "${message}"
+
+Task:
+${contextPrompt}`;
+
+    const models = ['gemini-3.6-flash', 'gemini-3.5-flash', 'gemini-3.5-flash-lite'];
+
+    for (const model of models) {
+      try {
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${env.AI_API_KEY}`;
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: systemPrompt }] }],
+            generationConfig: {
+              temperature: 0.4,
+              maxOutputTokens: 300,
+            },
+          }),
+        });
+
+        if (response.ok) {
+          const data = (await response.json()) as any;
+          const text = data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+          if (text) return text;
+        }
+      } catch {
+        // try next model
+      }
+    }
+
+    return null;
   }
 }
