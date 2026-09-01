@@ -65,7 +65,14 @@ export class MerchantService {
         const pId = item.productId;
         if (!productSalesMap[pId]) {
           productSalesMap[pId] = {
-            product: item.product,
+            product: {
+              id: item.product.id,
+              sku: item.product.sku,
+              name: item.product.name,
+              category: item.product.category,
+              priceInr: Number(item.product.pricePaise) / 100,
+              stock: item.product.stock,
+            },
             unitsSold: 0,
             totalRevenueInr: 0,
           };

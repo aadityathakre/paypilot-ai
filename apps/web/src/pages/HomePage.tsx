@@ -6,18 +6,15 @@ import {
   ShieldCheck, 
   CheckCircle2, 
   ArrowRight,
-  SlidersHorizontal,
   ShoppingCart,
   Check,
   Zap,
-  Tag,
-  AlertCircle,
   User as UserIcon,
   Package,
   Star,
   Maximize2,
   Minimize2,
-  Minus,
+  X,
   Loader2,
   Mic,
   MicOff,
@@ -104,7 +101,6 @@ export const HomePage: React.FC = () => {
   
   // UI Window Controls & Chatbot Drawer State
   const [isMaximized, setIsMaximized] = useState<boolean>(false);
-  const [isMinimized, setIsMinimized] = useState<boolean>(false);
   const [isChatbotOpen, setIsChatbotOpen] = useState<boolean>(false);
 
   // Storefront Catalog State
@@ -228,7 +224,6 @@ export const HomePage: React.FC = () => {
   // Helper to open chatbot with prompt and scroll into view
   const openChatbotWithPrompt = (promptText: string) => {
     setIsChatbotOpen(true);
-    setIsMinimized(false);
     handleSendMessage(promptText);
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
@@ -240,7 +235,6 @@ export const HomePage: React.FC = () => {
     const q = searchParams.get('search');
     if (q) {
       setIsChatbotOpen(true);
-      setIsMinimized(false);
       handleSendMessage(`Search catalog for: ${q}`);
     }
   }, [searchParams]);
@@ -581,94 +575,159 @@ export const HomePage: React.FC = () => {
         )}
       </section>
 
-      {/* Main Interactive Grid & AI Chatbot Panel Drawer */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 pt-4">
-        {/* Left 2 Cols: Live AI Commerce Chat Panel */}
+      {/* Agentic Architecture & Trust Framework Cards at Bottom */}
+      <section className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-6 border-t border-white/10">
+        <div className="glass-card rounded-2xl p-5 border border-white/10 space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-brand-400">
+              <ShieldCheck className="w-5 h-5" />
+              <h3 className="font-semibold text-white text-sm">Agentic Trust Framework</h3>
+            </div>
+            <button onClick={openAuthModal} className="text-[11px] text-cyan-400 hover:underline flex items-center gap-1">
+              <UserIcon className="w-3 h-3" />
+              <span>Profiles</span>
+            </button>
+          </div>
+          <ul className="space-y-2 text-xs text-slate-300">
+            <li className="flex items-start gap-2">
+              <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+              <span><strong>Intent Grounding:</strong> LLM extracts structured filters; real database returns verified products.</span>
+            </li>
+            <li className="flex items-start gap-2">
+              <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+              <span><strong>Deterministic Ranking:</strong> 5-signal scoring (Intent, Budget, Stock, Popularity, Growth).</span>
+            </li>
+          </ul>
+        </div>
+
+        <div className="glass-card rounded-2xl p-5 border border-white/10 space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-indigo-400">
+              <Zap className="w-4 h-4" />
+              <h3 className="font-semibold text-white text-sm">Active Merchant Rules</h3>
+            </div>
+            <Link to="/merchant" className="text-xs text-brand-400 hover:underline flex items-center gap-1">
+              Configure <ArrowRight className="w-3 h-3" />
+            </Link>
+          </div>
+          <div className="space-y-2 text-xs">
+            <div className="p-2 rounded-lg bg-slate-900/70 border border-white/5 flex items-center justify-between">
+              <span className="text-slate-400">Max Transaction Ceiling</span>
+              <span className="font-mono font-bold text-emerald-400">₹80,000</span>
+            </div>
+            <div className="p-2 rounded-lg bg-slate-900/70 border border-white/5 flex items-center justify-between">
+              <span className="text-slate-400">Max Bundle Discount</span>
+              <span className="font-mono font-bold text-indigo-300">10% (1000 bps)</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="glass-card rounded-2xl p-5 border border-white/10 flex flex-col justify-between space-y-3">
+          <div>
+            <h4 className="text-xs font-semibold text-white">Active Shopping Cart</h4>
+            <p className="text-[11px] text-slate-400">
+              {itemCount > 0 ? `${itemCount} item(s) ready for checkout` : 'Your cart is empty'}
+            </p>
+          </div>
+          <Link
+            to="/cart"
+            className="w-full py-2 rounded-xl bg-brand-500 hover:bg-brand-400 text-xs font-semibold text-white shadow-glow-cyan transition-all flex items-center justify-center gap-1.5"
+          >
+            <ShoppingCart className="w-3.5 h-3.5" />
+            <span>Open Cart ({itemCount})</span>
+          </Link>
+        </div>
+      </section>
+
+      {/* Floating AI Agent Trigger Icon Button at Bottom Right */}
+      <button
+        onClick={() => {
+          setIsChatbotOpen(!isChatbotOpen);
+        }}
+        className="fixed bottom-6 right-6 z-50 px-4 py-3 rounded-full bg-gradient-to-tr from-brand-600 via-brand-500 to-indigo-600 text-white shadow-glow-cyan border-2 border-brand-400/80 hover:scale-105 active:scale-95 transition-all cursor-pointer flex items-center gap-2.5 backdrop-blur-2xl"
+        title="Open PayPilot AI Commerce Assistant"
+      >
+        <div className="relative">
+          <Bot className="w-5 h-5 text-white" />
+          <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse border border-slate-950" />
+        </div>
+        <span className="text-xs font-bold text-white tracking-wide pr-1">
+          {isChatbotOpen ? 'Close AI Chat' : '🤖 Ask PayPilot AI'}
+        </span>
+      </button>
+
+      {/* Floating AI Chatbot Modal Drawer Overlay */}
+      {isChatbotOpen && (
         <div 
-          className={`glass-panel rounded-2xl flex flex-col shadow-glass border transition-all duration-300 ${
-            isMaximized 
-              ? 'fixed inset-4 sm:inset-6 z-50 p-6 bg-slate-950/95 backdrop-blur-2xl border-brand-500/40 shadow-2xl overflow-hidden' 
-              : isMinimized 
-              ? 'hidden' 
-              : 'lg:col-span-2 p-5 h-[680px] border-white/10'
+          className={`fixed z-50 glass-panel border border-brand-500/40 shadow-2xl rounded-2xl flex flex-col backdrop-blur-2xl transition-all duration-300 animate-fade-in ${
+            isMaximized
+              ? 'fixed inset-4 sm:inset-6 p-6 bg-slate-950/95 overflow-hidden'
+              : 'bottom-20 right-4 sm:right-6 w-[92vw] sm:w-[480px] h-[600px] p-4 bg-slate-950/90'
           }`}
         >
           {/* Chat Header */}
           <div className="flex items-center justify-between pb-3 border-b border-white/10 shrink-0">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-brand-500/20 border border-brand-500/40 flex items-center justify-center text-brand-400 shadow-glow-cyan">
-                <Bot className="w-5 h-5" />
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-brand-500/20 border border-brand-500/40 flex items-center justify-center text-brand-400 shadow-glow-cyan">
+                <Bot className="w-4 h-4" />
               </div>
               <div>
-                <h2 className="text-sm font-semibold text-white flex items-center gap-2">
-                  PayPilot AI Commerce Agent
+                <h3 className="text-xs font-bold text-white flex items-center gap-1.5">
+                  PayPilot AI Assistant
                   <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                </h2>
-                <p className="text-[11px] text-slate-400 font-mono">
-                  Conversational Understanding • Gemini LLM • PostgreSQL Verified
+                </h3>
+                <p className="text-[10px] text-slate-400 font-mono">
+                  Natural Language • Grounded PostgreSQL
                 </p>
               </div>
             </div>
 
-            <div className="flex items-center gap-3">
-              <div className="hidden sm:flex items-center gap-1.5 text-xs text-slate-400">
-                <SlidersHorizontal className="w-3.5 h-3.5" />
-                <span className="font-mono text-[11px]">
-                  User: {user ? user.name : 'Guest'}
-                </span>
-              </div>
-
-              {/* Minimize & Maximize (Full-Screen) Buttons */}
-              <div className="flex items-center gap-1.5 pl-2 border-l border-white/10">
-                <button
-                  type="button"
-                  onClick={() => setIsMinimized(true)}
-                  className="p-1.5 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white transition-colors"
-                  title="Minimize Chatbot Panel"
-                >
-                  <Minus className="w-3.5 h-3.5" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsMaximized(!isMaximized);
-                    if (isMinimized) setIsMinimized(false);
-                  }}
-                  className="p-1.5 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white transition-colors"
-                  title={isMaximized ? "Restore Normal View" : "Maximize Full Screen View"}
-                >
-                  {isMaximized ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
-                </button>
-              </div>
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => setIsMaximized(!isMaximized)}
+                className="p-1.5 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white transition-colors"
+                title={isMaximized ? "Restore Normal Window" : "Maximize Fullscreen"}
+              >
+                {isMaximized ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsChatbotOpen(false)}
+                className="p-1.5 rounded-lg bg-slate-800/80 hover:bg-rose-600/30 text-slate-300 hover:text-rose-300 transition-colors"
+                title="Close Chatbot Drawer"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
             </div>
           </div>
 
           {/* Messages Area */}
-          <div className="flex-1 overflow-y-auto py-4 space-y-4 pr-1">
+          <div className="flex-1 overflow-y-auto py-3 space-y-3 pr-1">
             {messages.map((msg) => (
               <div
                 key={msg.id}
                 className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}
               >
                 <div
-                  className={`flex gap-3 max-w-[92%] ${
+                  className={`flex gap-2.5 max-w-[95%] ${
                     msg.role === 'user' ? 'justify-end' : 'justify-start'
                   }`}
                 >
                   {msg.role === 'assistant' && (
-                    <div className="w-7 h-7 rounded-lg bg-brand-600/30 border border-brand-500/40 flex items-center justify-center text-brand-300 shrink-0 mt-0.5">
-                      <Bot className="w-4 h-4" />
+                    <div className="w-6 h-6 rounded-lg bg-brand-600/30 border border-brand-500/40 flex items-center justify-center text-brand-300 shrink-0 mt-0.5">
+                      <Bot className="w-3.5 h-3.5" />
                     </div>
                   )}
                   <div
-                    className={`p-3.5 rounded-2xl text-sm leading-relaxed ${
+                    className={`p-3 rounded-2xl text-xs leading-relaxed ${
                       msg.role === 'user'
                         ? 'bg-gradient-to-r from-brand-600 to-indigo-600 text-white rounded-tr-sm shadow-glow-cyan'
                         : 'glass-card text-slate-200 border border-white/10 rounded-tl-sm'
                     }`}
                   >
                     <p className="whitespace-pre-line">{msg.text}</p>
-                    <span className="block text-[10px] text-slate-400 mt-1.5 text-right font-mono">
+                    <span className="block text-[9px] text-slate-400 mt-1 text-right font-mono">
                       {msg.timestamp}
                     </span>
                   </div>
@@ -676,103 +735,60 @@ export const HomePage: React.FC = () => {
 
                 {/* Render Recommendation Cards if present */}
                 {msg.recommendations && msg.recommendations.length > 0 && (
-                  <div className="w-full pl-10 pt-3 space-y-3">
-                    <p className="text-xs font-semibold text-brand-300 flex items-center gap-1.5">
-                      <Sparkles className="w-3.5 h-3.5 text-brand-400" />
-                      Verified Catalog Matches ({msg.recommendations.length} items scored)
+                  <div className="w-full pl-8 pt-2 space-y-2">
+                    <p className="text-[11px] font-semibold text-brand-300 flex items-center gap-1">
+                      <Sparkles className="w-3 h-3 text-brand-400" />
+                      Verified Catalog Matches ({msg.recommendations.length} items)
                     </p>
-                    <div className={`grid gap-3 ${isMaximized ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-4' : 'grid-cols-1 sm:grid-cols-2'}`}>
-                      {msg.recommendations.map((rec) => {
+                    <div className="space-y-2">
+                      {msg.recommendations.map((rec, idx) => {
                         const isAdded = addedProductIds.has(rec.product.id);
                         const isLoadingThis = loadingProductId === rec.product.id;
+
                         return (
                           <div
-                            key={rec.product.id}
-                            className="glass-card rounded-xl p-3.5 border border-white/10 flex flex-col justify-between hover:border-brand-500/40 transition-all group"
+                            key={idx}
+                            className="p-3 rounded-xl bg-slate-900/90 border border-white/10 hover:border-brand-500/40 transition-all flex flex-col justify-between gap-2"
                           >
-                            <div className="space-y-2.5">
-                              {/* Product Image Thumbnail */}
-                              <div className="w-full h-32 rounded-lg bg-slate-900/80 border border-white/5 overflow-hidden relative">
-                                {rec.product.imageUrl ? (
-                                  <img
-                                    src={rec.product.imageUrl}
-                                    alt={rec.product.name}
-                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                                    onError={(e) => {
-                                      (e.target as HTMLElement).style.display = 'none';
-                                    }}
-                                  />
-                                ) : (
-                                  <div className="w-full h-full flex items-center justify-center text-slate-500">
-                                    <Package className="w-8 h-8" />
-                                  </div>
-                                )}
-                                <div className="absolute top-2 right-2 px-2 py-0.5 rounded-full bg-slate-950/80 backdrop-blur-md text-[10px] font-bold text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
-                                  <Star className="w-2.5 h-2.5 fill-emerald-400" />
-                                  <span>{Math.round(rec.score * 100)}% Match</span>
-                                </div>
-                              </div>
-
-                              <div className="flex items-center justify-between">
-                                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-300 uppercase">
-                                  {rec.product.category}
-                                </span>
-                                <span className="text-[11px] text-slate-400 font-mono">
-                                  SKU: {rec.product.sku}
-                                </span>
-                              </div>
-
-                              <h4 className="text-xs font-bold text-white leading-snug">
-                                {rec.product.name}
-                              </h4>
-                              <p className="text-sm font-extrabold text-brand-400 font-mono">
-                                ₹{rec.product.priceInr.toLocaleString('en-IN')}
-                              </p>
-
-                              {/* Key Attributes Tags */}
-                              {rec.product.attributes && (
-                                <div className="flex flex-wrap gap-1 pt-0.5">
-                                  {Object.entries(rec.product.attributes).slice(0, 3).map(([_k, v], idx) => (
-                                    <span key={idx} className="text-[9px] px-1.5 py-0.5 rounded bg-white/5 border border-white/10 text-slate-300">
-                                      {Array.isArray(v) ? v[0] : String(v)}
-                                    </span>
-                                  ))}
+                            <div className="flex items-start gap-2.5">
+                              {rec.product.imageUrl ? (
+                                <img
+                                  src={rec.product.imageUrl}
+                                  alt={rec.product.name}
+                                  className="w-10 h-10 rounded-lg object-cover border border-white/10 shrink-0"
+                                />
+                              ) : (
+                                <div className="w-10 h-10 rounded-lg bg-slate-800 flex items-center justify-center text-slate-500 shrink-0">
+                                  <Package className="w-5 h-5" />
                                 </div>
                               )}
 
-                              {/* Reasons list */}
-                              <ul className="space-y-1 text-[11px] text-slate-300 pt-1">
-                                {rec.reasons.slice(0, 2).map((r, i) => (
-                                  <li key={i} className="flex items-start gap-1">
-                                    <Check className="w-3 h-3 text-emerald-400 shrink-0 mt-0.5" />
-                                    <span className="line-clamp-1">{r}</span>
-                                  </li>
-                                ))}
-                              </ul>
-
-                              {rec.tradeOffs.length > 0 && (
-                                <p className="text-[10px] text-amber-300 flex items-center gap-1">
-                                  <AlertCircle className="w-3 h-3 shrink-0" />
-                                  <span className="line-clamp-1">{rec.tradeOffs[0]}</span>
-                                </p>
-                              )}
+                              <div className="min-w-0 flex-1">
+                                <div className="flex items-center justify-between gap-1">
+                                  <span className="text-[9px] font-mono text-brand-300 uppercase">
+                                    {rec.product.category}
+                                  </span>
+                                  <span className="text-[10px] font-bold text-emerald-400 font-mono">
+                                    ₹{rec.product.priceInr.toLocaleString('en-IN')}
+                                  </span>
+                                </div>
+                                <h4 className="text-xs font-bold text-white truncate">
+                                  {rec.product.name}
+                                </h4>
+                              </div>
                             </div>
 
-                            {/* Button with Loading Spinner & Double-Click Guardrail */}
                             <button
                               disabled={isLoadingThis}
                               onClick={() => handleAddToCart(rec.product.id, rec.product.name)}
-                              className={`mt-3 w-full py-2 px-3 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${
+                              className={`w-full py-1.5 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-all ${
                                 isAdded
                                   ? 'bg-emerald-600/30 text-emerald-300 border border-emerald-500/40'
-                                  : 'bg-brand-500 hover:bg-brand-400 text-white shadow-glow-cyan disabled:opacity-60'
+                                  : 'bg-brand-500 hover:bg-brand-400 text-white shadow-glow-cyan'
                               }`}
                             >
                               {isLoadingThis ? (
-                                <>
-                                  <Loader2 className="w-3.5 h-3.5 animate-spin text-white" />
-                                  <span>Adding...</span>
-                                </>
+                                <Loader2 className="w-3.5 h-3.5 animate-spin text-white" />
                               ) : isAdded ? (
                                 <>
                                   <Check className="w-3.5 h-3.5" />
@@ -781,7 +797,7 @@ export const HomePage: React.FC = () => {
                               ) : (
                                 <>
                                   <ShoppingCart className="w-3.5 h-3.5" />
-                                  <span>Add to Cart</span>
+                                  <span>Add to Cart (₹{rec.product.priceInr.toLocaleString('en-IN')})</span>
                                 </>
                               )}
                             </button>
@@ -792,98 +808,44 @@ export const HomePage: React.FC = () => {
                   </div>
                 )}
 
-                {/* Render Smart Upsell Banner if present */}
-                {msg.upsell && (
-                  <div className="w-full pl-10 pt-2">
-                    <div className="p-3.5 rounded-xl bg-indigo-950/40 border border-indigo-500/30 flex items-center justify-between gap-3">
-                      <div className="space-y-0.5">
-                        <div className="flex items-center gap-1.5">
-                          <Tag className="w-3.5 h-3.5 text-indigo-400" />
-                          <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-300">
-                            Smart Upsell Proposal ({msg.upsell.discountBps / 100}% Bundle Off)
-                          </span>
-                        </div>
-                        <h4 className="text-xs font-semibold text-white">
-                          {msg.upsell.product.name}
-                        </h4>
-                        <p className="text-[11px] text-slate-300">
-                          {msg.upsell.reason} •{' '}
-                          <span className="line-through text-slate-500">₹{msg.upsell.originalPriceInr.toLocaleString('en-IN')}</span>{' '}
-                          <strong className="text-emerald-400 font-mono">₹{msg.upsell.discountedPriceInr.toLocaleString('en-IN')}</strong>
-                        </p>
+                {/* Render Bundle Proposal Card */}
+                {msg.bundle && (
+                  <div className="w-full pl-8 pt-2">
+                    <div className="p-3 rounded-xl bg-gradient-to-r from-indigo-950/90 via-slate-900 to-purple-950/90 border border-indigo-500/50 shadow-glow-indigo space-y-2">
+                      <div className="flex items-center justify-between border-b border-white/10 pb-1.5">
+                        <span className="text-[10px] font-mono text-indigo-300 uppercase font-bold flex items-center gap-1">
+                          <Layers className="w-3 h-3 text-indigo-400" />
+                          <span>Setup Bundle Proposal</span>
+                        </span>
+                        <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-[10px] font-mono font-bold">
+                          Save ₹{msg.bundle.savingsInr.toLocaleString('en-IN')}
+                        </span>
                       </div>
 
-                      <button
-                        disabled={loadingProductId === msg.upsell!.product.id}
-                        onClick={() => handleAddToCart(msg.upsell!.product.id, msg.upsell!.product.name)}
-                        className="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shrink-0 transition-all shadow-glow-indigo flex items-center gap-1.5 disabled:opacity-60"
-                      >
-                        {loadingProductId === msg.upsell!.product.id ? (
-                          <>
-                            <Loader2 className="w-3 h-3 animate-spin text-white" />
-                            <span>Adding...</span>
-                          </>
-                        ) : (
-                          <span>+ Add Bundle</span>
-                        )}
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                {/* Render Complete Setup Bundle Card if present */}
-                {msg.bundle && msg.bundle.products && msg.bundle.products.length > 0 && (
-                  <div className="w-full pl-10 pt-3">
-                    <div className="p-4 rounded-xl bg-gradient-to-r from-slate-900 via-brand-950/60 to-indigo-950/80 border border-brand-500/40 shadow-glow-cyan space-y-3">
-                      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-                        <div className="flex items-center gap-2">
-                          <div className="p-2 rounded-lg bg-brand-500/20 text-brand-400 border border-brand-500/30">
-                            <Layers className="w-4 h-4" />
-                          </div>
-                          <div>
-                            <h4 className="text-xs font-bold text-white uppercase tracking-wider">
-                              {msg.bundle.title}
-                            </h4>
-                            <p className="text-[11px] text-emerald-400 font-semibold">
-                              Special 7% Bundle Savings: ₹{msg.bundle.savingsInr.toLocaleString('en-IN')} OFF!
-                            </p>
-                          </div>
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <span className="text-[10px] text-slate-400 line-through font-mono block">
+                            ₹{msg.bundle.totalPriceInr.toLocaleString('en-IN')}
+                          </span>
+                          <span className="text-sm font-black text-emerald-400 font-mono">
+                            ₹{msg.bundle.discountedPriceInr.toLocaleString('en-IN')}
+                          </span>
                         </div>
 
                         <button
                           disabled={loadingProductId === 'bundle_all'}
                           onClick={() => handleAddBundleToCart(msg.bundle!)}
-                          className="px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-brand-600 hover:from-emerald-500 hover:to-brand-500 text-white text-xs font-extrabold shrink-0 transition-all shadow-glow-cyan flex items-center gap-1.5 disabled:opacity-60"
+                          className="px-3 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold text-xs shadow-glow-cyan flex items-center gap-1 transition-all"
                         >
                           {loadingProductId === 'bundle_all' ? (
-                            <>
-                              <Loader2 className="w-3.5 h-3.5 animate-spin text-white" />
-                              <span>Adding Bundle...</span>
-                            </>
+                            <Loader2 className="w-3.5 h-3.5 animate-spin text-slate-950" />
                           ) : (
                             <>
                               <ShoppingCart className="w-3.5 h-3.5" />
-                              <span>➕ Add Complete Setup Bundle (₹{msg.bundle.discountedPriceInr.toLocaleString('en-IN')})</span>
+                              <span>Add Bundle (₹{msg.bundle.discountedPriceInr.toLocaleString('en-IN')})</span>
                             </>
                           )}
                         </button>
-                      </div>
-
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-1">
-                        {msg.bundle.products.map((p, idx) => (
-                          <div key={idx} className="p-2.5 rounded-lg bg-slate-950/80 border border-white/10 flex items-center gap-2.5">
-                            {p.imageUrl ? (
-                              <img src={p.imageUrl} alt={p.name} className="w-10 h-10 rounded-md object-cover border border-white/10" />
-                            ) : (
-                              <Package className="w-8 h-8 text-slate-500 shrink-0" />
-                            )}
-                            <div className="min-w-0 flex-1">
-                              <span className="text-[9px] font-mono text-brand-300 uppercase block">{p.category}</span>
-                              <h5 className="text-[11px] font-bold text-white truncate">{p.name}</h5>
-                              <span className="text-[11px] text-slate-300 font-mono">₹{p.priceInr.toLocaleString('en-IN')}</span>
-                            </div>
-                          </div>
-                        ))}
                       </div>
                     </div>
                   </div>
@@ -892,9 +854,9 @@ export const HomePage: React.FC = () => {
             ))}
 
             {isProcessing && (
-              <div className="flex items-center gap-3 pl-2 text-xs text-brand-400 animate-pulse">
-                <Bot className="w-5 h-5" />
-                <span className="font-mono">PayPilot agent processing your request...</span>
+              <div className="flex items-center gap-2 text-xs text-brand-400 animate-pulse pl-2">
+                <Bot className="w-4 h-4" />
+                <span className="font-mono text-[11px]">PayPilot agent analyzing request...</span>
               </div>
             )}
 
@@ -902,14 +864,14 @@ export const HomePage: React.FC = () => {
           </div>
 
           {/* Sample Prompts Chips */}
-          <div className="pt-2 pb-2 border-t border-white/5 shrink-0">
-            <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
+          <div className="py-1.5 border-t border-white/5 shrink-0">
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
               {samplePrompts.map((p, i) => (
                 <button
                   key={i}
                   disabled={isProcessing}
                   onClick={() => handleSendMessage(p.text)}
-                  className="px-2.5 py-1 rounded-lg text-xs bg-slate-800/80 hover:bg-brand-500/20 hover:text-brand-300 hover:border-brand-500/40 border border-white/10 text-slate-300 transition-all shrink-0 text-left disabled:opacity-50"
+                  className="px-2.5 py-1 rounded-lg text-[11px] bg-slate-900/80 hover:bg-brand-500/20 hover:text-brand-300 border border-white/10 text-slate-300 transition-all shrink-0 text-left disabled:opacity-50"
                 >
                   {p.label}
                 </button>
@@ -917,13 +879,13 @@ export const HomePage: React.FC = () => {
             </div>
           </div>
 
-          {/* Input Form with Voice Speech Recognition & Dynamic Rotating Placeholder */}
+          {/* Input Form */}
           <form
             onSubmit={(e) => {
               e.preventDefault();
               handleSendMessage();
             }}
-            className="pt-2 flex items-center gap-2 shrink-0"
+            className="pt-1 flex items-center gap-2 shrink-0"
           >
             <div className="relative flex-1">
               <input
@@ -932,8 +894,8 @@ export const HomePage: React.FC = () => {
                 onChange={(e) => setInputMessage(e.target.value)}
                 disabled={isProcessing}
                 placeholder={isListening ? '🎙️ Listening to speech...' : chatPlaceholders[placeholderIndex]}
-                className={`w-full pl-4 pr-10 py-2.5 rounded-xl bg-slate-900/90 border text-sm text-white placeholder-slate-400 outline-none transition-all ${
-                  isListening ? 'border-emerald-400 ring-2 ring-emerald-500/30' : 'border-white/15 focus:border-brand-400 focus:ring-1 focus:ring-brand-400'
+                className={`w-full pl-3 pr-8 py-2 rounded-xl bg-slate-900/90 border text-xs text-white placeholder-slate-400 outline-none transition-all ${
+                  isListening ? 'border-emerald-400 ring-2 ring-emerald-500/30' : 'border-white/15 focus:border-brand-400'
                 }`}
               />
 
@@ -942,11 +904,11 @@ export const HomePage: React.FC = () => {
                   type="button"
                   onClick={toggleMic}
                   title={isListening ? 'Stop Speech Recording' : 'Voice Search with Speech API'}
-                  className={`absolute right-2 top-2 p-1 rounded-lg transition-colors ${
+                  className={`absolute right-2 top-1.5 p-1 rounded-lg transition-colors ${
                     isListening ? 'bg-emerald-500/30 text-emerald-300 animate-pulse' : 'text-slate-400 hover:text-white'
                   }`}
                 >
-                  {isListening ? <MicOff className="w-4 h-4 text-emerald-400" /> : <Mic className="w-4 h-4" />}
+                  {isListening ? <MicOff className="w-3.5 h-3.5 text-emerald-400" /> : <Mic className="w-3.5 h-3.5" />}
                 </button>
               )}
             </div>
@@ -954,112 +916,14 @@ export const HomePage: React.FC = () => {
             <button
               type="submit"
               disabled={isProcessing || !inputMessage.trim()}
-              className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-brand-500 to-indigo-600 hover:from-brand-400 hover:to-indigo-500 text-white font-semibold text-sm flex items-center gap-2 shadow-glow-cyan transition-all disabled:opacity-50"
+              className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-brand-500 to-indigo-600 hover:from-brand-400 hover:to-indigo-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-glow-cyan transition-all disabled:opacity-50"
             >
-              {isProcessing ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin text-white" />
-                  <span>Thinking...</span>
-                </>
-              ) : (
-                <>
-                  <span>Send</span>
-                  <Send className="w-4 h-4" />
-                </>
-              )}
+              {isProcessing ? <Loader2 className="w-3.5 h-3.5 animate-spin text-white" /> : <Send className="w-3.5 h-3.5" />}
+              <span>Send</span>
             </button>
           </form>
         </div>
-
-        {/* Minimized Floating Bar Pill at Bottom Right */}
-        {isMinimized && (
-          <div 
-            onClick={() => setIsMinimized(false)}
-            className="fixed bottom-6 right-6 z-50 px-5 py-3 rounded-full bg-slate-900/95 border border-brand-500/40 shadow-glow-cyan text-white text-xs font-semibold flex items-center gap-3 cursor-pointer backdrop-blur-xl hover:scale-105 transition-all"
-          >
-            <div className="w-7 h-7 rounded-full bg-brand-500/20 border border-brand-400 flex items-center justify-center text-brand-300">
-              <Bot className="w-4 h-4" />
-            </div>
-            <span>🤖 PayPilot AI Agent (Minimized) • Click to Expand</span>
-            <Maximize2 className="w-4 h-4 text-brand-400" />
-          </div>
-        )}
-
-        {/* Right 1 Col: Architecture & Policy Highlights */}
-        <div className={`space-y-4 ${isMaximized ? 'hidden' : ''}`}>
-          <div className="glass-card rounded-2xl p-5 border border-white/10 space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 text-brand-400">
-                <ShieldCheck className="w-5 h-5" />
-                <h3 className="font-semibold text-white text-sm">Agentic Trust Framework</h3>
-              </div>
-              <button
-                onClick={openAuthModal}
-                className="text-[11px] text-cyan-400 hover:underline flex items-center gap-1"
-              >
-                <UserIcon className="w-3 h-3" />
-                <span>Profiles</span>
-              </button>
-            </div>
-            <ul className="space-y-2.5 text-xs text-slate-300">
-              <li className="flex items-start gap-2">
-                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
-                <span><strong>Intent Grounding:</strong> LLM extracts structured filters; real database returns verified products.</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
-                <span><strong>Deterministic Ranking:</strong> 5-signal scoring (Intent, Budget, Stock, Popularity, Growth).</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
-                <span><strong>Policy Gated:</strong> Hard ceiling of ₹80,000 blocks uncontrolled purchases.</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
-                <span><strong>Razorpay Checkout:</strong> Test-mode HMAC SHA256 verified signatures.</span>
-              </li>
-            </ul>
-          </div>
-
-          <div className="glass-card rounded-2xl p-5 border border-white/10 space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 text-indigo-400">
-                <Zap className="w-4 h-4" />
-                <h3 className="font-semibold text-white text-sm">Active Merchant Rules</h3>
-              </div>
-              <Link to="/merchant" className="text-xs text-brand-400 hover:underline flex items-center gap-1">
-                Configure <ArrowRight className="w-3 h-3" />
-              </Link>
-            </div>
-            <div className="space-y-2 text-xs">
-              <div className="p-2.5 rounded-lg bg-slate-900/70 border border-white/5 flex items-center justify-between">
-                <span className="text-slate-400">Max Transaction Limit</span>
-                <span className="font-mono font-bold text-emerald-400">₹80,000</span>
-              </div>
-              <div className="p-2.5 rounded-lg bg-slate-900/70 border border-white/5 flex items-center justify-between">
-                <span className="text-slate-400">Max Bundle Discount</span>
-                <span className="font-mono font-bold text-indigo-300">10% (1000 bps)</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="glass-card rounded-2xl p-5 border border-white/10 flex items-center justify-between">
-            <div>
-              <h4 className="text-xs font-semibold text-white">Active Shopping Cart</h4>
-              <p className="text-[11px] text-slate-400">
-                {itemCount > 0 ? `${itemCount} item(s) ready for checkout` : 'Your cart is empty'}
-              </p>
-            </div>
-            <Link
-              to="/cart"
-              className="px-4 py-2 rounded-xl bg-brand-500 hover:bg-brand-400 text-xs font-semibold text-white shadow-glow-cyan transition-all flex items-center gap-1.5"
-            >
-              <ShoppingCart className="w-3.5 h-3.5" />
-              <span>Open Cart ({itemCount})</span>
-            </Link>
-          </div>
-        </div>
-      </div>
+      )}
     </div>
   );
 };
