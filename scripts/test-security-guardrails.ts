@@ -200,7 +200,7 @@ async function runSecurityTests() {
   // 5. Test Mandatory Human Confirmation Gate
   await assert('Order creation fails if human confirmation is false', async () => {
     const product = await prisma.product.findFirst({
-      where: { active: true },
+      where: { active: true, pricePaise: { lte: BigInt(5000000) } },
     });
     if (!product) return false;
 
