@@ -8,6 +8,7 @@ const testSuites = [
   { name: 'Phase 7: Webhooks, Idempotency & Lifecycle', script: 'scripts/test-webhooks.ts' },
   { name: 'Phase 8: Merchant Analytics & Policy Studio', script: 'scripts/test-merchant.ts' },
   { name: 'Phase 9: Security, Guardrails & Defenses', script: 'scripts/test-security-guardrails.ts' },
+  { name: 'Phase 11: SaaS Upgrades & Email Receipts', script: 'scripts/test-phase11-saas.ts' },
 ];
 
 async function runMasterTestRunner() {

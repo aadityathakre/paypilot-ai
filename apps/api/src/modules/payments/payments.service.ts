@@ -2,6 +2,7 @@ import { OrderStatus, PaymentStatus, CartStatus } from '@prisma/client';
 import { prisma } from '../../config/db.js';
 import { AppError } from '../../middleware/errorHandler.js';
 import { RazorpayService } from '../../integrations/razorpay/razorpay.service.js';
+import { emailService } from '../../integrations/email/email.service.js';
 import { VerifyPaymentInput } from './payments.schema.js';
 
 export class PaymentsService {
@@ -17,7 +18,9 @@ export class PaymentsService {
     const order = await prisma.order.findUnique({
       where: { id: input.orderId },
       include: {
-        items: true,
+        items: {
+          include: { product: true },
+        },
       },
     });
 
@@ -150,6 +153,29 @@ export class PaymentsService {
 
       return { payment, updatedOrder };
     });
+
+    // Trigger async order receipt email
+    prisma.user
+      .findUnique({ where: { id: customerId } })
+      .then((user) => {
+        if (user?.email) {
+          emailService
+            .sendOrderConfirmationEmail({
+              toEmail: user.email,
+              customerName: user.name || 'Customer',
+              orderId: order.id,
+              razorpayPaymentId: input.razorpayPaymentId,
+              totalAmountRupees: Number(order.amountPaise) / 100,
+              items: order.items.map((i) => ({
+                name: i.product?.name || 'Product',
+                quantity: i.quantity,
+                unitPriceRupees: Number(i.unitPricePaise) / 100,
+              })),
+            })
+            .catch(() => null);
+        }
+      })
+      .catch(() => null);
 
     return {
       verified: true,

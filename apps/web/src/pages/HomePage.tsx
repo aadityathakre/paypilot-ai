@@ -16,7 +16,7 @@ import {
   Package,
   Star
 } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 
@@ -113,6 +113,16 @@ export const HomePage: React.FC = () => {
 
     initSession();
   }, [token]);
+
+  const [searchParams] = useSearchParams();
+
+  // Handle URL manual search params from top navbar or voice input
+  useEffect(() => {
+    const q = searchParams.get('search');
+    if (q) {
+      handleSendMessage(`Search catalog for: ${q}`);
+    }
+  }, [searchParams]);
 
   // Scroll to latest message
   useEffect(() => {

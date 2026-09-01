@@ -177,4 +177,50 @@ export class AuthService {
       expiresIn: '7d',
     });
   }
+
+  /**
+   * Forgot password trigger
+   */
+  static async forgotPassword(email: string): Promise<{ sent: boolean; message: string }> {
+    const user = await withDbRetry(() => prisma.user.findUnique({ where: { email } }));
+    if (!user) {
+      // Do not reveal email existence for security
+      return { sent: true, message: 'If an account exists with this email, a reset link has been dispatched.' };
+    }
+
+    // Generate token
+    const resetToken = jwt.sign({ id: user.id, purpose: 'PASSWORD_RESET' }, env.JWT_SECRET, { expiresIn: '1h' });
+
+    // Send email asynchronously
+    const { emailService } = await import('../../integrations/email/email.service.js');
+    emailService.sendPasswordResetEmail({
+      toEmail: user.email,
+      userName: user.name,
+      resetToken,
+    }).catch(() => null);
+
+    return { sent: true, message: 'If an account exists with this email, a reset link has been dispatched.' };
+  }
+
+  /**
+   * Reset password with valid token
+   */
+  static async resetPassword(token: string, newPassword: string): Promise<{ success: boolean; message: string }> {
+    try {
+      const decoded = jwt.verify(token, env.JWT_SECRET) as any;
+      if (decoded.purpose !== 'PASSWORD_RESET') {
+        throw new AppError('Invalid or expired reset token.', 400, 'INVALID_TOKEN');
+      }
+
+      const passwordHash = await bcrypt.hash(newPassword, 10);
+      await prisma.user.update({
+        where: { id: decoded.id },
+        data: { passwordHash },
+      });
+
+      return { success: true, message: 'Password updated successfully. You can now login.' };
+    } catch {
+      throw new AppError('Invalid or expired reset token.', 400, 'INVALID_TOKEN');
+    }
+  }
 }
