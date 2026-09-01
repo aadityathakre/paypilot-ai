@@ -5,17 +5,23 @@ import {
   ShoppingCart, 
   Store, 
   Sparkles, 
-  ShieldCheck, 
   Zap, 
   Menu, 
-  X 
+  X,
+  User as UserIcon,
+  LogOut,
+  ChevronDown
 } from 'lucide-react';
+import { useCart } from '../../context/CartContext';
+import { useAuth } from '../../context/AuthContext';
 
 export const Navbar: React.FC = () => {
   const location = useLocation();
-  const [cartCount] = useState<number>(0);
+  const { itemCount } = useCart();
+  const { user, isAuthenticated, openAuthModal, logout, quickLoginAs } = useAuth();
   const [systemHealthy, setSystemHealthy] = useState<boolean | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
+  const [userMenuOpen, setUserMenuOpen] = useState<boolean>(false);
 
   useEffect(() => {
     // Check backend health
@@ -54,7 +60,7 @@ export const Navbar: React.FC = () => {
             </Link>
 
             {/* Health status badge */}
-            <div className="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-800/80 border border-slate-700/60 text-xs">
+            <div className="hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-800/80 border border-slate-700/60 text-xs">
               <span className={`w-2 h-2 rounded-full ${systemHealthy === true ? 'bg-emerald-400 animate-pulse' : systemHealthy === false ? 'bg-amber-400' : 'bg-slate-400'}`} />
               <span className="text-slate-300 font-mono text-[11px]">
                 {systemHealthy === true ? 'API Connected' : systemHealthy === false ? 'Offline' : 'Checking...'}
@@ -78,17 +84,17 @@ export const Navbar: React.FC = () => {
 
             <Link
               to="/cart"
-              className={`px-3.5 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
+              className={`px-3.5 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 relative ${
                 isCurrent('/cart')
                   ? 'bg-brand-500/15 text-brand-400 border border-brand-500/30'
                   : 'text-slate-300 hover:text-white hover:bg-slate-800/50'
               }`}
             >
               <ShoppingCart className="w-4 h-4 text-indigo-400" />
-              Cart
-              {cartCount > 0 && (
-                <span className="ml-1 px-1.5 py-0.5 text-[10px] font-bold rounded-full bg-brand-500 text-white">
-                  {cartCount}
+              <span>Cart</span>
+              {itemCount > 0 && (
+                <span className="px-1.5 py-0.2 text-[11px] font-bold rounded-full bg-brand-500 text-white shadow-glow-cyan animate-pulse">
+                  {itemCount}
                 </span>
               )}
             </Link>
@@ -106,14 +112,81 @@ export const Navbar: React.FC = () => {
             </Link>
           </nav>
 
-          {/* Right side Badges & Actions */}
+          {/* Right side Profile & Badges */}
           <div className="hidden md:flex items-center gap-3">
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-950/40 border border-indigo-800/40 text-indigo-300 text-xs">
-              <ShieldCheck className="w-4 h-4 text-indigo-400" />
-              <span className="font-medium">Bounded Policy Gate</span>
-            </div>
+            {/* User Profile Pill / Auth Button */}
+            {isAuthenticated && user ? (
+              <div className="relative">
+                <button
+                  onClick={() => setUserMenuOpen(!userMenuOpen)}
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-800/80 border border-white/10 hover:border-brand-500/40 text-xs transition-all"
+                >
+                  <div className="w-6 h-6 rounded-lg bg-gradient-to-tr from-brand-500 to-indigo-600 flex items-center justify-center text-white font-bold text-[10px]">
+                    {user.name.charAt(0).toUpperCase()}
+                  </div>
+                  <div className="text-left">
+                    <span className="block font-semibold text-white leading-tight">{user.name}</span>
+                    <span className="block text-[10px] text-cyan-400 font-mono uppercase leading-tight">
+                      {user.role}
+                    </span>
+                  </div>
+                  <ChevronDown className="w-3.5 h-3.5 text-slate-400 ml-1" />
+                </button>
 
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-950/40 border border-emerald-800/40 text-emerald-300 text-xs">
+                {/* Dropdown Menu */}
+                {userMenuOpen && (
+                  <div className="absolute right-0 mt-2 w-48 rounded-xl bg-slate-900 border border-white/15 shadow-2xl p-1.5 space-y-1 z-50 animate-fade-in">
+                    <div className="px-3 py-1.5 border-b border-white/10">
+                      <span className="block text-[11px] text-slate-400">Signed in as</span>
+                      <span className="block text-xs font-semibold text-white truncate">{user.email}</span>
+                    </div>
+
+                    <button
+                      onClick={() => {
+                        quickLoginAs(user.role === 'CUSTOMER' ? 'MERCHANT' : 'CUSTOMER');
+                        setUserMenuOpen(false);
+                      }}
+                      className="w-full text-left px-3 py-1.5 rounded-lg text-xs text-slate-300 hover:text-white hover:bg-slate-800 flex items-center gap-2"
+                    >
+                      <Sparkles className="w-3.5 h-3.5 text-brand-400" />
+                      <span>Switch to {user.role === 'CUSTOMER' ? 'Merchant' : 'Customer'}</span>
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        openAuthModal();
+                        setUserMenuOpen(false);
+                      }}
+                      className="w-full text-left px-3 py-1.5 rounded-lg text-xs text-slate-300 hover:text-white hover:bg-slate-800 flex items-center gap-2"
+                    >
+                      <UserIcon className="w-3.5 h-3.5 text-indigo-400" />
+                      <span>Switch / Sign In</span>
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        logout();
+                        setUserMenuOpen(false);
+                      }}
+                      className="w-full text-left px-3 py-1.5 rounded-lg text-xs text-rose-400 hover:bg-rose-950/30 flex items-center gap-2 border-t border-white/5"
+                    >
+                      <LogOut className="w-3.5 h-3.5" />
+                      <span>Sign Out</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <button
+                onClick={openAuthModal}
+                className="px-3.5 py-1.5 rounded-xl bg-brand-500 hover:bg-brand-400 text-white text-xs font-semibold shadow-glow-cyan transition-all flex items-center gap-1.5"
+              >
+                <UserIcon className="w-3.5 h-3.5" />
+                <span>Sign In / Demo</span>
+              </button>
+            )}
+
+            <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-emerald-950/40 border border-emerald-800/40 text-emerald-300 text-xs">
               <Zap className="w-3.5 h-3.5 text-emerald-400" />
               <span className="font-medium">Test Mode</span>
             </div>
@@ -146,7 +219,7 @@ export const Navbar: React.FC = () => {
             onClick={() => setMobileMenuOpen(false)}
             className="block px-3 py-2 rounded-lg text-base font-medium text-slate-200 hover:bg-slate-800"
           >
-            Cart ({cartCount})
+            Cart ({itemCount})
           </Link>
           <Link
             to="/merchant"
@@ -155,6 +228,15 @@ export const Navbar: React.FC = () => {
           >
             Merchant View
           </Link>
+          <button
+            onClick={() => {
+              setMobileMenuOpen(false);
+              openAuthModal();
+            }}
+            className="w-full text-left px-3 py-2 rounded-lg text-base font-medium text-cyan-400 hover:bg-slate-800"
+          >
+            {isAuthenticated ? `Signed in as ${user?.name}` : 'Sign In / Demo Login'}
+          </button>
         </div>
       )}
     </header>

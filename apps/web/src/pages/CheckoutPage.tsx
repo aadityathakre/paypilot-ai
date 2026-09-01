@@ -1,65 +1,34 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { CreditCard, ShieldCheck, Lock, ArrowLeft, Check, AlertTriangle } from 'lucide-react';
-
-interface CartData {
-  id: string;
-  items: Array<{
-    id: string;
-    product: { name: string; sku: string };
-    quantity: number;
-    totalPriceInr: number;
-  }>;
-  itemCount: number;
-  subtotalInr: number;
-  totalInr: number;
-}
+import { useAuth } from '../context/AuthContext';
+import { useCart } from '../context/CartContext';
+import { RazorpayModal } from '../components/payment/RazorpayModal';
 
 export const CheckoutPage: React.FC = () => {
-  const navigate = useNavigate();
+  const { token } = useAuth();
+  const { cart, refreshCart } = useCart();
   const [confirmed, setConfirmed] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [cart, setCart] = useState<CartData | null>(null);
-  const [token, setToken] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  // Authenticate and load live cart
+  // Razorpay Modal state
+  const [isRazorpayModalOpen, setIsRazorpayModalOpen] = useState(false);
+  const [activeOrderId, setActiveOrderId] = useState('');
+  const [activeRazorpayOrderId, setActiveRazorpayOrderId] = useState('');
+  const [activeAmountInr, setActiveAmountInr] = useState(0);
+
   useEffect(() => {
-    async function init() {
-      try {
-        const loginRes = await fetch('/api/auth/login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: 'customer@paypilot.ai', password: 'CustomerPass@123' }),
-        });
-        const loginJson = await loginRes.json();
-        const authToken = loginJson.data?.token;
-
-        if (authToken) {
-          setToken(authToken);
-          const cartRes = await fetch('/api/carts/active', {
-            headers: { Authorization: `Bearer ${authToken}` },
-          });
-          const cartJson = await cartRes.json();
-          if (cartJson.success && cartJson.data?.cart) {
-            setCart(cartJson.data.cart);
-          }
-        }
-      } catch (err) {
-        console.error('Checkout init error:', err);
-      }
-    }
-
-    init();
+    refreshCart();
   }, []);
 
   const handleExecutePayment = async () => {
-    if (!confirmed || !token || !cart || loading) return;
+    if (!confirmed || !token || !cart || cart.items.length === 0 || loading) return;
     setLoading(true);
     setErrorMessage(null);
 
     try {
-      // 1. Create Checkout Order & Validate Policy
+      // 1. Create Checkout Order & Validate Policy on backend
       const orderRes = await fetch('/api/checkout/create-order', {
         method: 'POST',
         headers: {
@@ -71,83 +40,18 @@ export const CheckoutPage: React.FC = () => {
 
       const orderJson = await orderRes.json();
       if (!orderJson.success || !orderJson.data) {
-        throw new Error(orderJson.error?.message || 'Failed to create order');
+        throw new Error(orderJson.error?.message || 'Policy or order creation failed');
       }
 
-      const { orderId, razorpayOrderId, amountInr, keyId, receipt } = orderJson.data;
+      const { orderId, razorpayOrderId, amountInr } = orderJson.data;
 
-      // 2. Check if Razorpay JS is available in window
-      if (typeof (window as any).Razorpay !== 'undefined' && keyId && !keyId.includes('placeholder')) {
-        const options = {
-          key: keyId,
-          amount: cart.totalInr * 100,
-          currency: 'INR',
-          name: 'PayPilot AI Store',
-          description: `Order Receipt: ${receipt}`,
-          order_id: razorpayOrderId,
-          handler: async function (response: any) {
-            await verifyPaymentOnServer({
-              orderId,
-              razorpayOrderId: response.razorpay_order_id,
-              razorpayPaymentId: response.razorpay_payment_id,
-              razorpaySignature: response.razorpay_signature,
-              amountInr,
-            });
-          },
-          prefill: {
-            name: 'Demo Customer',
-            email: 'customer@paypilot.ai',
-          },
-          theme: { color: '#06b6d4' },
-        };
-        const rzp = new (window as any).Razorpay(options);
-        rzp.open();
-      } else {
-        // Test Mode Simulation: Generate test payment ID and navigate
-        const simulatedPaymentId = `pay_test_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
-        
-        setTimeout(() => {
-          setLoading(false);
-          navigate('/order-success', {
-            state: {
-              orderId,
-              razorpayOrderId,
-              razorpayPaymentId: simulatedPaymentId,
-              amountInr: cart.totalInr,
-              itemCount: cart.itemCount,
-            },
-          });
-        }, 1000);
-      }
+      setActiveOrderId(orderId);
+      setActiveRazorpayOrderId(razorpayOrderId);
+      setActiveAmountInr(amountInr);
+      setIsRazorpayModalOpen(true);
     } catch (err: any) {
-      setLoading(false);
-      setErrorMessage(err.message || 'Payment execution failed');
-    }
-  };
-
-  const verifyPaymentOnServer = async (paymentData: any) => {
-    try {
-      const verifyRes = await fetch('/api/payments/verify', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          orderId: paymentData.orderId,
-          razorpayOrderId: paymentData.razorpayOrderId,
-          razorpayPaymentId: paymentData.razorpayPaymentId,
-          razorpaySignature: paymentData.razorpaySignature,
-        }),
-      });
-      const verifyJson = await verifyRes.json();
-      if (verifyJson.success) {
-        navigate('/order-success', { state: paymentData });
-      } else {
-        throw new Error(verifyJson.error?.message || 'Verification failed');
-      }
-    } catch (err: any) {
-      setErrorMessage(err.message);
+      setErrorMessage(err.message || 'Checkout failed');
+    } finally {
       setLoading(false);
     }
   };
@@ -210,9 +114,13 @@ export const CheckoutPage: React.FC = () => {
             <span className="text-slate-300 font-medium">Authoritative Payable Amount</span>
             <span className="text-xl font-bold text-brand-400 font-mono">{formattedTotal}</span>
           </div>
-          {cart && (
+          {cart && cart.items.length > 0 ? (
             <p className="text-xs text-slate-400">
               Includes: {cart.items.map((i) => `${i.quantity}x ${i.product.name}`).join(', ')}
+            </p>
+          ) : (
+            <p className="text-xs text-amber-300">
+              Your cart is empty. Please add items from the AI Assistant before checking out.
             </p>
           )}
         </div>
@@ -262,6 +170,18 @@ export const CheckoutPage: React.FC = () => {
           </span>
         </button>
       </div>
+
+      {/* Razorpay Simulation Modal */}
+      {token && (
+        <RazorpayModal
+          isOpen={isRazorpayModalOpen}
+          onClose={() => setIsRazorpayModalOpen(false)}
+          orderId={activeOrderId}
+          razorpayOrderId={activeRazorpayOrderId}
+          amountInr={activeAmountInr}
+          token={token}
+        />
+      )}
     </div>
   );
 };

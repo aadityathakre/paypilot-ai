@@ -11,9 +11,12 @@ import {
   Check,
   Zap,
   Tag,
-  AlertCircle
+  AlertCircle,
+  User as UserIcon
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+import { useCart } from '../context/CartContext';
 
 interface RankedRecommendation {
   product: {
@@ -57,8 +60,9 @@ interface ChatMessage {
 }
 
 export const HomePage: React.FC = () => {
+  const { user, token, openAuthModal } = useAuth();
+  const { addItem, itemCount } = useCart();
   const [sessionId, setSessionId] = useState<string | null>(null);
-  const [token, setToken] = useState<string | null>(null);
   const [inputMessage, setInputMessage] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [addedProductIds, setAddedProductIds] = useState<Set<string>>(new Set());
@@ -84,34 +88,13 @@ export const HomePage: React.FC = () => {
   // Initialize customer session on mount
   useEffect(() => {
     async function initSession() {
+      if (!token) return;
       try {
-        // 1. Auto-login or register as demo customer
-        const loginRes = await fetch('/api/auth/login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: 'customer@paypilot.ai', password: 'CustomerPass@123' }),
-        });
-        const loginData = await loginRes.json();
-
-        let authToken = loginData.data?.token;
-        if (!authToken) {
-          const regRes = await fetch('/api/auth/register', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name: 'Demo Customer', email: `customer_${Date.now()}@paypilot.ai`, password: 'CustomerPass@123' }),
-          });
-          const regData = await regRes.json();
-          authToken = regData.data?.token;
-        }
-
-        setToken(authToken);
-
-        // 2. Initialize Agent Session
         const sessRes = await fetch('/api/agent/sessions', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            Authorization: `Bearer ${authToken}`,
+            Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify({}),
         });
@@ -125,7 +108,7 @@ export const HomePage: React.FC = () => {
     }
 
     initSession();
-  }, []);
+  }, [token]);
 
   // Scroll to latest message
   useEffect(() => {
@@ -149,7 +132,7 @@ export const HomePage: React.FC = () => {
 
     try {
       if (!sessionId || !token) {
-        throw new Error('Session not initialized yet');
+        throw new Error('Session initializing, please wait a moment');
       }
 
       const res = await fetch(`/api/agent/sessions/${sessionId}/messages`, {
@@ -192,25 +175,11 @@ export const HomePage: React.FC = () => {
   };
 
   const handleAddToCart = async (productId: string, productName: string) => {
-    if (!token) return;
-    try {
-      const res = await fetch('/api/carts/items', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ productId, quantity: 1 }),
-      });
-
-      const json = await res.json();
-      if (json.success) {
-        setAddedProductIds((prev) => new Set([...prev, productId]));
-        setCartSuccessMessage(`Added "${productName}" to cart!`);
-        setTimeout(() => setCartSuccessMessage(null), 3500);
-      }
-    } catch (err) {
-      console.error('Add to cart failed:', err);
+    const success = await addItem(productId, 1);
+    if (success) {
+      setAddedProductIds((prev) => new Set([...prev, productId]));
+      setCartSuccessMessage(`Added "${productName}" to cart!`);
+      setTimeout(() => setCartSuccessMessage(null), 3500);
     }
   };
 
@@ -222,7 +191,7 @@ export const HomePage: React.FC = () => {
           <CheckCircle2 className="w-4 h-4 text-emerald-400" />
           <span>{cartSuccessMessage}</span>
           <Link to="/cart" className="ml-2 underline text-white hover:text-emerald-300">
-            View Cart →
+            View Cart ({itemCount}) →
           </Link>
         </div>
       )}
@@ -266,7 +235,9 @@ export const HomePage: React.FC = () => {
 
             <div className="flex items-center gap-2 text-xs text-slate-400">
               <SlidersHorizontal className="w-3.5 h-3.5" />
-              <span className="font-mono text-[11px]">Session: Active</span>
+              <span className="font-mono text-[11px]">
+                User: {user ? user.name : 'Guest'}
+              </span>
             </div>
           </div>
 
@@ -467,9 +438,18 @@ export const HomePage: React.FC = () => {
         {/* Right 1 Col: Architecture & Policy Highlights */}
         <div className="space-y-4">
           <div className="glass-card rounded-2xl p-5 border border-white/10 space-y-3">
-            <div className="flex items-center gap-2 text-brand-400">
-              <ShieldCheck className="w-5 h-5" />
-              <h3 className="font-semibold text-white text-sm">Agentic Trust Framework</h3>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-brand-400">
+                <ShieldCheck className="w-5 h-5" />
+                <h3 className="font-semibold text-white text-sm">Agentic Trust Framework</h3>
+              </div>
+              <button
+                onClick={openAuthModal}
+                className="text-[11px] text-cyan-400 hover:underline flex items-center gap-1"
+              >
+                <UserIcon className="w-3 h-3" />
+                <span>Profiles</span>
+              </button>
             </div>
             <ul className="space-y-2.5 text-xs text-slate-300">
               <li className="flex items-start gap-2">
@@ -515,15 +495,17 @@ export const HomePage: React.FC = () => {
 
           <div className="glass-card rounded-2xl p-5 border border-white/10 flex items-center justify-between">
             <div>
-              <h4 className="text-xs font-semibold text-white">Review Active Cart</h4>
-              <p className="text-[11px] text-slate-400">Proceed to bounded checkout</p>
+              <h4 className="text-xs font-semibold text-white">Active Shopping Cart</h4>
+              <p className="text-[11px] text-slate-400">
+                {itemCount > 0 ? `${itemCount} item(s) ready for checkout` : 'Your cart is empty'}
+              </p>
             </div>
             <Link
               to="/cart"
               className="px-4 py-2 rounded-xl bg-brand-500 hover:bg-brand-400 text-xs font-semibold text-white shadow-glow-cyan transition-all flex items-center gap-1.5"
             >
               <ShoppingCart className="w-3.5 h-3.5" />
-              <span>Open Cart</span>
+              <span>Open Cart ({itemCount})</span>
             </Link>
           </div>
         </div>
