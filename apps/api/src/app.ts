@@ -9,6 +9,8 @@ import { authRouter } from './modules/auth/auth.routes.js';
 import { productsRouter } from './modules/products/products.routes.js';
 import { cartRouter } from './modules/cart/cart.routes.js';
 import { agentRouter } from './modules/agent/agent.routes.js';
+import { checkoutRouter } from './modules/checkout/checkout.routes.js';
+import { paymentsRouter } from './modules/payments/payments.routes.js';
 
 export function createApp(): Express {
   const app = express();
@@ -57,11 +59,13 @@ export function createApp(): Express {
   app.use('/', healthRouter);
   app.use('/api', healthRouter);
 
-  // Commerce, Agent & Auth routes
+  // Commerce, Agent, Policy & Payment routes
   app.use('/api/auth', authRouter);
   app.use('/api/products', productsRouter);
   app.use('/api/carts', cartRouter);
   app.use('/api/agent', agentRouter);
+  app.use('/api/checkout', checkoutRouter);
+  app.use('/api/payments', paymentsRouter);
 
   // 404 Route Handler
   app.use((req: Request, _res: Response, next: NextFunction) => {
