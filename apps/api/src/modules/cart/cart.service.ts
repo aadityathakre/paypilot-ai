@@ -1,5 +1,5 @@
 import { CartStatus } from '@prisma/client';
-import { prisma } from '../../config/db.js';
+import { prisma, withDbRetry } from '../../config/db.js';
 import { AppError } from '../../middleware/errorHandler.js';
 import { AddItemInput, UpdateItemQuantityInput } from './cart.schema.js';
 
@@ -27,14 +27,14 @@ export interface FormattedCart {
   id: string;
   customerId: string;
   merchantId: string;
-  status: CartStatus;
   currency: string;
-  items: FormattedCartItem[];
-  itemCount: number;
+  status: CartStatus;
   subtotalPaise: number;
   subtotalInr: number;
   totalPaise: number;
   totalInr: number;
+  items: FormattedCartItem[];
+  itemCount: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -48,10 +48,9 @@ export class CartService {
     let itemCount = 0;
 
     const formattedItems: FormattedCartItem[] = (cart.items || []).map((item: any) => {
-      // Authoritative unit price from current DB product price
-      const unitPricePaiseNum = Number(item.product?.pricePaise ?? item.unitPricePaise);
+      const unitPricePaiseNum = Number(item.product?.pricePaise ?? item.unitPricePaise ?? 0);
       const itemTotalPaise = unitPricePaiseNum * item.quantity;
-      
+
       subtotalPaise += itemTotalPaise;
       itemCount += item.quantity;
 
@@ -59,15 +58,25 @@ export class CartService {
         id: item.id,
         cartId: item.cartId,
         productId: item.productId,
-        product: {
-          id: item.product.id,
-          sku: item.product.sku,
-          name: item.product.name,
-          category: item.product.category,
-          imageUrl: item.product.imageUrl,
-          stock: item.product.stock,
-          active: item.product.active,
-        },
+        product: item.product
+          ? {
+              id: item.product.id,
+              sku: item.product.sku,
+              name: item.product.name,
+              category: item.product.category,
+              imageUrl: item.product.imageUrl,
+              stock: item.product.stock,
+              active: item.product.active,
+            }
+          : {
+              id: item.productId,
+              sku: '',
+              name: 'Product',
+              category: '',
+              imageUrl: null,
+              stock: 0,
+              active: true,
+            },
         quantity: item.quantity,
         unitPricePaise: unitPricePaiseNum,
         unitPriceInr: unitPricePaiseNum / 100,
@@ -80,14 +89,14 @@ export class CartService {
       id: cart.id,
       customerId: cart.customerId,
       merchantId: cart.merchantId,
-      status: cart.status,
       currency: cart.currency,
-      items: formattedItems,
-      itemCount,
+      status: cart.status,
       subtotalPaise,
       subtotalInr: subtotalPaise / 100,
       totalPaise: subtotalPaise,
       totalInr: subtotalPaise / 100,
+      items: formattedItems,
+      itemCount,
       createdAt: cart.createdAt,
       updatedAt: cart.updatedAt,
     };
@@ -97,20 +106,22 @@ export class CartService {
    * Retrieve active cart for customer or initialize one
    */
   static async getActiveCart(customerId: string): Promise<FormattedCart> {
-    let cart = await prisma.cart.findFirst({
-      where: {
-        customerId,
-        status: CartStatus.ACTIVE,
-      },
-      include: {
-        items: {
-          include: {
-            product: true,
-          },
-          orderBy: { createdAt: 'asc' },
+    let cart = await withDbRetry(async () =>
+      prisma.cart.findFirst({
+        where: {
+          customerId,
+          status: CartStatus.ACTIVE,
         },
-      },
-    });
+        include: {
+          items: {
+            include: {
+              product: true,
+            },
+            orderBy: { createdAt: 'asc' },
+          },
+        },
+      })
+    , 'getActiveCart');
 
     if (!cart) {
       // Get primary merchant to associate
