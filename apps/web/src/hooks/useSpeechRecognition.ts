@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 
 interface UseSpeechRecognitionOptions {
+  silentMode?: boolean;
   onSpeechComplete?: (finalTranscript: string) => void;
 }
 
@@ -12,6 +13,7 @@ interface UseSpeechRecognitionReturn {
   stopListening: () => void;
   resetTranscript: () => void;
   speakGreeting: () => void;
+  speakText: (textToSpeak: string) => void;
 }
 
 export function useSpeechRecognition(options?: UseSpeechRecognitionOptions): UseSpeechRecognitionReturn {
@@ -39,17 +41,35 @@ export function useSpeechRecognition(options?: UseSpeechRecognitionOptions): Use
     return 'Welcome to PayPilot! What product would you like to search today? Please speak...';
   };
 
-  const speakGreeting = useCallback(() => {
-    if ('speechSynthesis' in window) {
-      window.speechSynthesis.cancel(); // stop previous audio
-      const text = getGreetingText();
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = getLangCode();
-      utterance.rate = 1.0;
-      utterance.pitch = 1.0;
-      window.speechSynthesis.speak(utterance);
+  // Indian Female Voice Synthesis Helper
+  const speakText = useCallback((textToSpeak: string) => {
+    if (!('speechSynthesis' in window) || options?.silentMode) return;
+    window.speechSynthesis.cancel(); // cancel previous audio
+
+    const utterance = new SpeechSynthesisUtterance(textToSpeak);
+    utterance.lang = getLangCode();
+    utterance.rate = 0.95; // calm and natural pace
+    utterance.pitch = 1.15; // friendly female tone
+
+    const voices = window.speechSynthesis.getVoices();
+    const femaleIndianVoice = voices.find(
+      (v) =>
+        (v.lang.includes('IN') || v.lang.includes('en-IN') || v.lang.includes('hi-IN')) &&
+        (v.name.toLowerCase().includes('female') || v.name.toLowerCase().includes('zira') || v.name.toLowerCase().includes('heera') || v.name.toLowerCase().includes('google'))
+    ) || voices.find((v) => v.lang.includes('IN')) || voices.find((v) => v.name.toLowerCase().includes('female'));
+
+    if (femaleIndianVoice) {
+      utterance.voice = femaleIndianVoice;
     }
-  }, []);
+
+    window.speechSynthesis.speak(utterance);
+  }, [options?.silentMode]);
+
+  const speakGreeting = useCallback(() => {
+    if (!options?.silentMode) {
+      speakText(getGreetingText());
+    }
+  }, [options?.silentMode, speakText]);
 
   const handleSpeechSilenceDone = useCallback(() => {
     const textToSearch = latestTranscriptRef.current.trim();
@@ -174,5 +194,6 @@ export function useSpeechRecognition(options?: UseSpeechRecognitionOptions): Use
     stopListening,
     resetTranscript,
     speakGreeting,
+    speakText,
   };
 }

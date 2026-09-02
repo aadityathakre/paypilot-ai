@@ -35,6 +35,7 @@ export const Navbar: React.FC = () => {
   const [addedProductId, setAddedProductId] = useState<string | null>(null);
 
   const { isListening, transcript, startListening, stopListening, isSupported } = useSpeechRecognition({
+    silentMode: true,
     onSpeechComplete: (finalSpeech) => {
       setSearchQuery(finalSpeech);
       setShowLiveDropdown(false);

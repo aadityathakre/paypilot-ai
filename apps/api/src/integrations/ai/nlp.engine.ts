@@ -117,12 +117,30 @@ export class NLPEngine {
   }
 
   private static isGreeting(text: string): boolean {
+    // If text mentions any product or budget keywords, it is a product query, NOT a greeting!
+    if (
+      text.includes('mouse') ||
+      text.includes('laptop') ||
+      text.includes('keyboard') ||
+      text.includes('monitor') ||
+      text.includes('headphone') ||
+      text.includes('gadget') ||
+      text.includes('under') ||
+      text.includes('budget') ||
+      text.includes('5k') ||
+      text.includes('50k') ||
+      text.includes('bhi') ||
+      text.includes('chahiye')
+    ) {
+      return false;
+    }
+
     const greetingWords = [
       'hi', 'hello', 'hey', 'heyy', 'hola', 'namaste', 'namaskar', 'pranam',
       'kaise ho', 'kya haal', 'kese ho', 'kaisa hai', 'bhai', 'bro', 'buddy',
       'good morning', 'good evening', 'good afternoon', 'good night',
       'what up', "what's up", 'wassup', 'sup', 'yo', 'how are you', 'how r u',
-      'how do you do', 'who are you', 'what can you do', 'shukriya', 'thanks', 'thank you', 'bye', 'alvida'
+      'how do you do', 'who are you', 'what is your name', "whats your name", 'what can you do', 'shukriya', 'thanks', 'thank you', 'bye', 'alvida'
     ];
 
     const tokens = text.split(/\s+/);
@@ -135,8 +153,12 @@ export class NLPEngine {
   }
 
   private static generateGreetingResponse(text: string): string {
+    if (text.includes('name') || text.includes('who are you') || text.includes('kaun ho')) {
+      return `My name is **PayPilot AI**! 🤖 I am your agentic commerce assistant built for Razorpay Track 1. I help you discover verified tech products, score options based on your exact budget, and process safe checkouts!`;
+    }
+
     if (text.includes('kaise ho') || text.includes('kese ho') || text.includes('kaisa hai') || text.includes('kya haal')) {
-      return `Main bilkul theek hoon bhai! 😊 Aap bataiye kaise hain? Main PayPilot AI hoon — aapka shopping aur tech commerce assistant.\n\nAapko koi tech product chahiye jaise **Coding Laptop, 4K Monitor, Mechanical Keyboard ya Headphones**? Aap apna budget ya use-case batayein, main best options recommend kar dunga!`;
+      return `Main bilkul mast hoon! 😊 Aap bataiye kaise hain? Main PayPilot AI hoon. Aaj aapko kaun sa tech product ya accessory chahiye? Budget batayein, main best options dikha dunga!`;
     }
 
     if (text.includes('namaste') || text.includes('namaskar')) {
@@ -144,14 +166,14 @@ export class NLPEngine {
     }
 
     if (text.includes('thanks') || text.includes('thank you') || text.includes('shukriya') || text.includes('dhanyawad')) {
-      return `You're very welcome! Always happy to help. Let me know if you need any other product recommendations or details! 😊`;
+      return `You're very welcome! Always happy to help. Let me know if you need any other product recommendations! 😊`;
     }
 
     if (text.includes('bye') || text.includes('alvida')) {
-      return `Goodbye! Have a fantastic day ahead. Feel free to come back whenever you're planning your next tech setup! 👋`;
+      return `Goodbye! Have a fantastic day ahead! 👋`;
     }
 
-    return `Hello! 👋 I'm **PayPilot AI**, your agentic commerce assistant.\n\nI can help you explore verified products from our catalog (such as **coding laptops, 4K monitors, mechanical keyboards, studio headphones, and accessories**), score options based on your exact budget and use case, and guide you through bounded Razorpay checkout.\n\nWhat are you looking to setup or buy today?`;
+    return `Hello! 👋 I'm **PayPilot AI**, your smart shopping assistant. How can I help you find tech products or gear today?`;
   }
 
   private static isPolicyQA(text: string): boolean {

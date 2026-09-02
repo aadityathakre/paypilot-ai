@@ -14,6 +14,7 @@ import {
   CheckCircle2,
   Globe,
   AlertCircle,
+  LogOut,
 } from 'lucide-react';
 import { RazorpayModal } from '../components/payment/RazorpayModal';
 
@@ -44,7 +45,7 @@ interface Order {
 }
 
 export const CustomerProfilePage: React.FC = () => {
-  const { user, token, refreshUser } = useAuth();
+  const { user, token, refreshUser, logout } = useAuth();
   const [activeTab, setActiveTab] = useState<'profile' | 'wallet' | 'orders' | 'language'>('profile');
 
   // Form states
@@ -345,17 +346,32 @@ export const CustomerProfilePage: React.FC = () => {
           </div>
         </div>
 
-        {/* Quick Wallet Summary Card */}
-        <div className="glass-card p-4 rounded-2xl border border-white/10 flex items-center gap-4 text-right">
-          <div className="w-12 h-12 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
-            <Wallet className="w-6 h-6" />
+        {/* Header Right Actions: Wallet & Logout */}
+        <div className="flex flex-wrap items-center gap-3 justify-center md:justify-end">
+          <div className="glass-card p-4 rounded-2xl border border-white/10 flex items-center gap-4 text-right">
+            <div className="w-12 h-12 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
+              <Wallet className="w-6 h-6" />
+            </div>
+            <div>
+              <span className="text-[10px] text-slate-400 uppercase font-mono block">PayPilot Wallet Balance</span>
+              <span className="text-xl font-extrabold text-emerald-400 font-mono">
+                ₹{walletBalance.toLocaleString('en-IN')}
+              </span>
+            </div>
           </div>
-          <div>
-            <span className="text-[10px] text-slate-400 uppercase font-mono block">PayPilot Wallet Balance</span>
-            <span className="text-xl font-extrabold text-emerald-400 font-mono">
-              ₹{walletBalance.toLocaleString('en-IN')}
-            </span>
-          </div>
+
+          <button
+            type="button"
+            onClick={() => {
+              logout();
+              window.location.href = '/login';
+            }}
+            className="px-4 py-3 rounded-2xl bg-rose-500/15 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 text-xs font-bold flex items-center gap-2 transition-all shadow-glow-cyan"
+            title="Sign out of your PayPilot account"
+          >
+            <LogOut className="w-4 h-4 text-rose-400" />
+            <span>Log Out</span>
+          </button>
         </div>
       </div>
 
@@ -466,7 +482,7 @@ export const CustomerProfilePage: React.FC = () => {
                   {user?.emailVerified ? (
                     <span className="text-[11px] font-bold text-emerald-400 flex items-center gap-1 bg-emerald-500/10 px-2.5 py-0.5 rounded-full border border-emerald-500/20">
                       <CheckCircle2 className="w-3.5 h-3.5" />
-                      <span>Verified Email (PostgreSQL DB)</span>
+                      <span>Verified Email Address</span>
                     </span>
                   ) : (
                     <span className="text-[11px] font-bold text-amber-400 flex items-center gap-1 bg-amber-500/10 px-2.5 py-0.5 rounded-full border border-amber-500/20">
@@ -483,15 +499,17 @@ export const CustomerProfilePage: React.FC = () => {
                     disabled
                     className="flex-1 bg-slate-950 border border-white/10 rounded-xl px-3.5 py-2.5 text-slate-400 cursor-not-allowed"
                   />
-                  <button
-                    type="button"
-                    onClick={handleSendOtp}
-                    disabled={isSendingOtp}
-                    className="px-4 py-2.5 rounded-xl bg-purple-600/30 hover:bg-purple-600/40 text-purple-200 border border-purple-500/40 text-xs font-semibold flex items-center gap-1.5 transition-all shrink-0 shadow-glow-cyan"
-                  >
-                    <Mail className="w-3.5 h-3.5 text-purple-400" />
-                    <span>{isSendingOtp ? 'Sending OTP...' : user?.emailVerified ? 'Re-verify Email (Resend OTP)' : 'Send Verification OTP'}</span>
-                  </button>
+                  {!user?.emailVerified && (
+                    <button
+                      type="button"
+                      onClick={handleSendOtp}
+                      disabled={isSendingOtp}
+                      className="px-4 py-2.5 rounded-xl bg-purple-600/30 hover:bg-purple-600/40 text-purple-200 border border-purple-500/40 text-xs font-semibold flex items-center gap-1.5 transition-all shrink-0 shadow-glow-cyan"
+                    >
+                      <Mail className="w-3.5 h-3.5 text-purple-400" />
+                      <span>{isSendingOtp ? 'Sending OTP...' : 'Send Verification OTP'}</span>
+                    </button>
+                  )}
                 </div>
               </div>
 

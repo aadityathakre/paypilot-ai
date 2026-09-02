@@ -102,20 +102,24 @@ export class AgentService {
     if (isShopping) {
       // Invoke Verified Catalog Tool (PostgreSQL DB Query)
       const toolStart = Date.now();
+      const cleanSearchTerm = (intent.searchTerm && intent.searchTerm !== intent.category && !['keyboards_mice', 'laptops', 'monitors', 'audio_video', 'accessories', 'apparel', 'electricals', 'gadgets'].includes(intent.searchTerm))
+        ? intent.searchTerm
+        : undefined;
+
       const catalogResults = await ProductsService.listProducts({
         category: intent.category || undefined,
         maxPrice: intent.budgetMax || undefined,
-        search: intent.searchTerm || undefined,
+        search: cleanSearchTerm,
         limit: 10,
         page: 1,
         sortBy: 'score_desc',
       });
 
-      // If initial category filter yields 0 items, broaden search to all in-stock products
+      // If initial query yields 0 items (e.g. budget too low or specific search string), fallback to category/all items
       let candidateItems = catalogResults.items;
-      if (candidateItems.length === 0 && intent.category) {
+      if (candidateItems.length === 0) {
         const fallbackSearch = await ProductsService.listProducts({
-          maxPrice: intent.budgetMax || undefined,
+          category: intent.category || undefined,
           limit: 10,
           page: 1,
           sortBy: 'score_desc',

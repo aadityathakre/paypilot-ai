@@ -77,12 +77,7 @@ export class AIProvider {
 
     // 3. If Purchase Search with 0 matches
     if (rankedProducts.length === 0) {
-      return `I searched our verified catalog for "${userMessage}", but couldn't find an exact match under your specified criteria.\n\n💡 **Tip**: Try searching for **Laptops**, **Monitors**, **Keyboards & Mice**, **Electronics & Gadgets**, **Apparel**, or **Electricals**, or adjust your budget!`;
-    }
-
-    // 4. Grounded Top Recommendation fallback
-    if (!intent.category && rankedProducts.length > 0) {
-      return `Bilkul! PayPilot AI store par humare paas top verified tech gear available hai. Yahan hamare sabse popular aur top-rated recommendations hain:\n\nAap inme se koi bhi product seedhe apne cart mein add kar sakte hain ya customer approval gate ke saath bounded checkout shuru kar sakte hain!`;
+      return `I searched our verified catalog for "${userMessage}", but couldn't find an exact match right now.\n\n💡 **Tip**: Try searching for **Laptops**, **Monitors**, **Keyboards & Mice**, **Electronics & Gadgets**, **Apparel**, or **Electricals**!`;
     }
 
     const topPick = rankedProducts[0].product;
@@ -92,7 +87,11 @@ export class AIProvider {
       ? rankedProducts[0].reasons.join(', ')
       : `Direct match for category ${topPick?.category || 'hardware'}`;
 
-    return `Based on your requirements, I recommend the **${nameVal}** for **₹${priceVal.toLocaleString('en-IN')}**.\n\nIt matches your needs because it is **${topReasons}**. You can add it directly to your cart below or explore the complementary bundle option!`;
+    if (intent.budgetMax && priceVal > intent.budgetMax) {
+      return `I searched our verified PostgreSQL catalog for options under **₹${intent.budgetMax.toLocaleString('en-IN')}**, but our lowest priced item in stock is **₹${priceVal.toLocaleString('en-IN')}**.\n\nHere is our top recommended option: **${nameVal}** for **₹${priceVal.toLocaleString('en-IN')}** (${topReasons}). You can add it to your cart directly below!`;
+    }
+
+    return `Based on your request, I recommend the **${nameVal}** for **₹${priceVal.toLocaleString('en-IN')}**.\n\nIt matches your criteria (${topReasons}). You can add it directly to your cart below!`;
   }
 
   /**
