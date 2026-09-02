@@ -213,7 +213,7 @@ export const CustomerProfilePage: React.FC = () => {
       const json = await res.json();
       if (res.ok) {
         setShowOtpInput(true);
-        setProfileMsg({ type: 'success', text: `6-Digit OTP sent via Nodemailer to ${user?.email}. Code expires in 5 minutes!` });
+        setProfileMsg({ type: 'success', text: json.message || `6-Digit OTP code sent to ${user?.email}. Code expires in 5 minutes!` });
       } else {
         setProfileMsg({ type: 'error', text: json.message || 'OTP dispatch failed.' });
       }

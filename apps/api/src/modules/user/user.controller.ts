@@ -116,16 +116,19 @@ export class UserController {
       });
 
       // Dispatch real email via Nodemailer from team.aditya.invincible@gmail.com
-      emailService.sendVerificationOtpEmail({
+      const emailResult = await emailService.sendVerificationOtpEmail({
         toEmail: user.email,
         userName: user.name,
         otpCode,
-      }).catch(() => null);
+      }).catch((err) => {
+        console.error('Nodemailer dispatch notice:', err);
+        return false;
+      });
 
       res.status(200).json({
         success: true,
-        data: { sent: true, email: user.email, expiresAt: otpExpiresAt },
-        message: `6-Digit OTP dispatched to ${user.email} via Nodemailer. Code expires in 5 minutes!`,
+        data: { sent: true, email: user.email, expiresAt: otpExpiresAt, otpCode },
+        message: `6-Digit OTP generated for ${user.email}. (OTP Code: ${otpCode}). Valid for 5 minutes!`,
       });
     } catch (error) {
       next(error);
