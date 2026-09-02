@@ -10,6 +10,9 @@ export class OrdersService {
       prisma.order.findMany({
         where: { customerId },
         include: {
+          merchant: {
+            select: { id: true, name: true, currency: true },
+          },
           items: {
             include: { product: true },
           },
@@ -25,6 +28,7 @@ export class OrdersService {
     return orders.map((ord) => ({
       id: ord.id,
       merchantId: ord.merchantId,
+      merchantName: ord.merchant?.name || 'PayPilot Official Store',
       status: ord.status,
       amountRupees: Number(ord.amountPaise) / 100,
       createdAt: ord.createdAt,
@@ -36,6 +40,7 @@ export class OrdersService {
           id: i.id,
           productId: i.productId,
           productName: i.product?.name || 'Product',
+          category: i.product?.category || 'Hardware',
           quantity: i.quantity,
           unitPriceRupees: unitRupees,
           subtotalRupees: unitRupees * i.quantity,
@@ -61,6 +66,9 @@ export class OrdersService {
       prisma.order.findUnique({
         where: { id: orderId },
         include: {
+          merchant: {
+            select: { id: true, name: true, currency: true },
+          },
           items: {
             include: { product: true },
           },
@@ -78,6 +86,7 @@ export class OrdersService {
     return {
       id: order.id,
       merchantId: order.merchantId,
+      merchantName: order.merchant?.name || 'PayPilot Official Store',
       status: order.status,
       amountRupees: Number(order.amountPaise) / 100,
       createdAt: order.createdAt,
@@ -88,6 +97,7 @@ export class OrdersService {
           id: i.id,
           productId: i.productId,
           productName: i.product?.name || 'Product',
+          category: i.product?.category || 'Hardware',
           quantity: i.quantity,
           unitPriceRupees: unitRupees,
           subtotalRupees: unitRupees * i.quantity,

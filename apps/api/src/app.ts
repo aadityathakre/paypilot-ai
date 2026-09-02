@@ -15,6 +15,7 @@ import { webhooksRouter } from './modules/webhooks/webhooks.routes.js';
 import { merchantRouter } from './modules/merchant/merchant.routes.js';
 import { auditRouter } from './modules/audit/audit.routes.js';
 import { ordersRouter } from './modules/orders/orders.routes.js';
+import { userRouter } from './modules/user/user.routes.js';
 import { rateLimiter } from './middleware/rateLimiter.js';
 
 export function createApp(): Express {
@@ -66,6 +67,7 @@ export function createApp(): Express {
 
   // Commerce, Agent, Policy, Payment, Webhook, Merchant & Audit routes
   app.use('/api/auth', rateLimiter({ windowMs: 60 * 1000, max: 30 }), authRouter);
+  app.use('/api/user', userRouter);
   app.use('/api/products', productsRouter);
   app.use('/api/carts', cartRouter);
   app.use('/api/orders', ordersRouter);

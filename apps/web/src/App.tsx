@@ -11,6 +11,7 @@ import { CartPage } from './pages/CartPage.tsx';
 import { CheckoutPage } from './pages/CheckoutPage.tsx';
 import { OrderSuccessPage } from './pages/OrderSuccessPage.tsx';
 import { CustomerOrdersPage } from './pages/CustomerOrdersPage.tsx';
+import { CustomerProfilePage } from './pages/CustomerProfilePage.tsx';
 import { MerchantDashboardPage } from './pages/MerchantDashboardPage.tsx';
 import { MerchantProductsPage } from './pages/MerchantProductsPage.tsx';
 
@@ -29,7 +30,15 @@ export const App: React.FC = () => {
                 <Route path="/checkout" element={<CheckoutPage />} />
                 <Route path="/order-success" element={<OrderSuccessPage />} />
                 
-                {/* Customer Orders Route */}
+                {/* Customer Profile & Orders Routes */}
+                <Route
+                  path="/profile"
+                  element={
+                    <ProtectedRoute allowedRoles={['CUSTOMER', 'MERCHANT', 'ADMIN']}>
+                      <CustomerProfilePage />
+                    </ProtectedRoute>
+                  }
+                />
                 <Route
                   path="/orders"
                   element={

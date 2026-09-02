@@ -8,4 +8,7 @@ export const paymentsRouter = Router();
 
 paymentsRouter.use(authenticateJwt);
 
+paymentsRouter.get('/key', PaymentsController.getKey);
+paymentsRouter.post('/create-order', PaymentsController.createOrder);
+paymentsRouter.post('/pay-with-wallet', PaymentsController.payWithWallet);
 paymentsRouter.post('/verify', validateBody(verifyPaymentSchema), PaymentsController.verifyPayment);

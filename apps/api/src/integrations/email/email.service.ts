@@ -126,15 +126,14 @@ class EmailService {
   }
 
   /**
-   * Send Password Reset Email with Token Link
+   * Send Email Verification 6-Digit OTP Code
    */
-  async sendPasswordResetEmail(params: {
+  async sendVerificationOtpEmail(params: {
     toEmail: string;
     userName: string;
-    resetToken: string;
+    otpCode: string;
   }): Promise<boolean> {
-    const { toEmail, userName, resetToken } = params;
-    const resetUrl = `${env.CLIENT_URL || 'http://localhost:5173'}/reset-password?token=${resetToken}&email=${encodeURIComponent(toEmail)}`;
+    const { toEmail, userName, otpCode } = params;
 
     const htmlContent = `
       <!DOCTYPE html>
@@ -142,18 +141,28 @@ class EmailService {
       <head>
         <meta charset="utf-8">
         <style>
-          body { font-family: sans-serif; background: #0f172a; color: #f8fafc; padding: 20px; }
-          .card { max-width: 500px; margin: 0 auto; background: #1e293b; padding: 30px; border-radius: 12px; border: 1px solid #334155; text-align: center; }
-          .btn { display: inline-block; background: #0284c7; color: #ffffff; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: bold; margin-top: 20px; }
+          body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #0f172a; color: #f8fafc; margin: 0; padding: 20px; }
+          .container { max-width: 500px; margin: 0 auto; background: #1e293b; border-radius: 16px; padding: 30px; border: 1px solid #334155; text-align: center; }
+          .logo { font-size: 22px; font-weight: 800; color: #38bdf8; margin-bottom: 10px; }
+          .otp-box { background: #090d16; border: 2px border #38bdf8; border-radius: 12px; padding: 20px; margin: 20px 0; font-size: 32px; font-weight: 900; letter-spacing: 8px; color: #34d399; font-family: monospace; }
+          .notice { color: #94a3b8; font-size: 13px; line-height: 1.5; }
+          .footer { text-align: center; color: #64748b; font-size: 11px; margin-top: 25px; border-top: 1px solid #334155; padding-top: 15px; }
         </style>
       </head>
       <body>
-        <div class="card">
-          <h2 style="color: #38bdf8;">PayPilot AI — Reset Password</h2>
-          <p>Hi ${userName}, you requested to reset your password.</p>
-          <p>Click the button below to set a new password. This link is valid for 1 hour.</p>
-          <a href="${resetUrl}" class="btn">Reset My Password</a>
-          <p style="color: #64748b; font-size: 12px; margin-top: 25px;">Token: ${resetToken}</p>
+        <div class="container">
+          <div class="logo">⚡ PayPilot Commerce</div>
+          <h2 style="margin: 10px 0; color: #f8fafc;">Verify Your Email Address</h2>
+          <p class="notice">Hi <strong>${userName}</strong>, use the 6-digit OTP code below to verify your email address. This OTP is valid for <strong>5 minutes</strong>.</p>
+          
+          <div class="otp-box">${otpCode}</div>
+
+          <p class="notice">If you did not request this OTP code, please ignore this email.</p>
+
+          <div class="footer">
+            <p>PayPilot AI — Grounded Agentic Commerce & Bounded Payments</p>
+            <p>Sent from team.aditya.invincible@gmail.com</p>
+          </div>
         </div>
       </body>
       </html>
@@ -161,9 +170,60 @@ class EmailService {
 
     return this.sendMail({
       to: toEmail,
-      subject: `Reset Your PayPilot AI Password`,
+      subject: `PayPilot Email Verification OTP: ${otpCode}`,
       html: htmlContent,
-      text: `Hi ${userName}, click here to reset your password: ${resetUrl}`,
+      text: `Hi ${userName}, your PayPilot email verification OTP code is: ${otpCode}. It expires in 5 minutes.`,
+    });
+  }
+
+  /**
+   * Send Password Reset 6-Digit OTP Code
+   */
+  async sendForgotPasswordOtpEmail(params: {
+    toEmail: string;
+    userName: string;
+    otpCode: string;
+  }): Promise<boolean> {
+    const { toEmail, userName, otpCode } = params;
+
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <style>
+          body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #0f172a; color: #f8fafc; margin: 0; padding: 20px; }
+          .container { max-width: 500px; margin: 0 auto; background: #1e293b; border-radius: 16px; padding: 30px; border: 1px solid #334155; text-align: center; }
+          .logo { font-size: 22px; font-weight: 800; color: #c084fc; margin-bottom: 10px; }
+          .otp-box { background: #090d16; border: 2px border #c084fc; border-radius: 12px; padding: 20px; margin: 20px 0; font-size: 32px; font-weight: 900; letter-spacing: 8px; color: #c084fc; font-family: monospace; }
+          .notice { color: #94a3b8; font-size: 13px; line-height: 1.5; }
+          .footer { text-align: center; color: #64748b; font-size: 11px; margin-top: 25px; border-top: 1px solid #334155; padding-top: 15px; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="logo">⚡ PayPilot Security</div>
+          <h2 style="margin: 10px 0; color: #f8fafc;">Password Reset OTP</h2>
+          <p class="notice">Hi <strong>${userName}</strong>, you requested to reset your password. Use the 6-digit OTP code below to confirm your request. This code is valid for <strong>5 minutes</strong>.</p>
+          
+          <div class="otp-box">${otpCode}</div>
+
+          <p class="notice">If you did not request a password reset, please secure your account immediately.</p>
+
+          <div class="footer">
+            <p>PayPilot AI — Grounded Agentic Commerce & Bounded Payments</p>
+            <p>Sent from team.aditya.invincible@gmail.com</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+
+    return this.sendMail({
+      to: toEmail,
+      subject: `PayPilot Password Reset OTP: ${otpCode}`,
+      html: htmlContent,
+      text: `Hi ${userName}, your PayPilot password reset OTP code is: ${otpCode}. It expires in 5 minutes.`,
     });
   }
 

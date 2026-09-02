@@ -13,6 +13,8 @@ interface OrderItem {
 
 interface Order {
   id: string;
+  merchantId?: string;
+  merchantName?: string;
   status: 'PAID' | 'PENDING_PAYMENT' | 'FAILED' | 'CANCELLED';
   amountRupees: number;
   createdAt: string;
@@ -147,6 +149,9 @@ export const CustomerOrdersPage: React.FC = () => {
                     <div className="flex items-center gap-2">
                       <span className="text-xs font-bold text-slate-300">Order ID:</span>
                       <span className="text-xs font-mono text-brand-400 font-semibold">{ord.id}</span>
+                      <span className="text-[11px] font-semibold text-purple-300 bg-purple-500/20 px-2 py-0.5 rounded-full border border-purple-500/30">
+                        🏪 {ord.merchantName || 'PayPilot Official Store'}
+                      </span>
                     </div>
                     <div className="flex items-center gap-2 text-[11px] text-slate-400">
                       <Calendar className="w-3.5 h-3.5" />
@@ -222,6 +227,10 @@ export const CustomerOrdersPage: React.FC = () => {
               </div>
 
               <div className="p-4 rounded-xl bg-slate-950 space-y-2 text-xs font-mono">
+                <div className="flex justify-between text-slate-400">
+                  <span>Merchant Store:</span>
+                  <span className="text-purple-300 font-bold font-sans">🏪 {selectedOrder.merchantName || 'PayPilot Official Store'}</span>
+                </div>
                 <div className="flex justify-between text-slate-400">
                   <span>Order ID:</span>
                   <span className="text-slate-200">{selectedOrder.id}</span>

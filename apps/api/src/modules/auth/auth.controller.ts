@@ -44,7 +44,7 @@ export class AuthController {
   static async forgotPassword(req: Request, res: Response, Next: NextFunction): Promise<void> {
     try {
       const { email } = req.body;
-      const result = await AuthService.forgotPassword(email);
+      const result = await AuthService.requestForgotPasswordOtp(email);
       res.status(200).json({
         success: true,
         data: result,
@@ -57,8 +57,8 @@ export class AuthController {
 
   static async resetPassword(req: Request, res: Response, Next: NextFunction): Promise<void> {
     try {
-      const { token, newPassword } = req.body;
-      const result = await AuthService.resetPassword(token, newPassword);
+      const { email, otpCode, newPassword } = req.body;
+      const result = await AuthService.resetPasswordWithOtp(email, otpCode, newPassword);
       res.status(200).json({
         success: true,
         data: result,
@@ -66,6 +66,20 @@ export class AuthController {
       });
     } catch (error) {
       Next(error);
+    }
+  }
+
+  static async topupWallet(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { amountInr, paymentId } = req.body;
+      const result = await AuthService.topupWallet(req.user!.id, amountInr, paymentId);
+      res.status(200).json({
+        success: true,
+        data: result,
+        requestId: req.requestId,
+      });
+    } catch (error) {
+      next(error);
     }
   }
 }

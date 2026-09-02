@@ -11,3 +11,4 @@ authRouter.post('/login', validateBody(loginSchema), AuthController.login);
 authRouter.get('/me', authenticateJwt, AuthController.getMe);
 authRouter.post('/forgot-password', AuthController.forgotPassword);
 authRouter.post('/reset-password', AuthController.resetPassword);
+authRouter.post('/wallet/topup', authenticateJwt, AuthController.topupWallet);

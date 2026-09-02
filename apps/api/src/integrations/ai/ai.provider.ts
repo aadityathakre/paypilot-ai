@@ -86,8 +86,13 @@ export class AIProvider {
     }
 
     const topPick = rankedProducts[0].product;
-    const topReasons = rankedProducts[0].reasons.join(', ');
-    return `Based on your requirements, I recommend the **${topPick.name}** for **₹${(topPick.pricePaise / 100).toLocaleString('en-IN')}**.\n\nIt matches your needs because it is **${topReasons}**. You can add it directly to your cart below or explore the complementary bundle option!`;
+    const nameVal = topPick?.name || 'Verified Hardware Match';
+    const priceVal = topPick?.priceInr ?? (topPick?.pricePaise ? Number(topPick.pricePaise) / 100 : 0);
+    const topReasons = (rankedProducts[0]?.reasons && rankedProducts[0].reasons.length > 0)
+      ? rankedProducts[0].reasons.join(', ')
+      : `Direct match for category ${topPick?.category || 'hardware'}`;
+
+    return `Based on your requirements, I recommend the **${nameVal}** for **₹${priceVal.toLocaleString('en-IN')}**.\n\nIt matches your needs because it is **${topReasons}**. You can add it directly to your cart below or explore the complementary bundle option!`;
   }
 
   /**

@@ -76,13 +76,43 @@ export class ProductsService {
     }
 
     if (search && search.trim() !== '') {
-      const term = search.trim();
-      where.OR = [
-        { name: { contains: term, mode: 'insensitive' } },
-        { description: { contains: term, mode: 'insensitive' } },
-        { category: { contains: term, mode: 'insensitive' } },
-        { sku: { contains: term, mode: 'insensitive' } },
-      ];
+      const rawTerm = search.trim();
+      
+      // Stopwords to filter out for NLP intent extraction
+      const stopWords = new Set([
+        'i', 'want', 'need', 'show', 'me', 'the', 'a', 'an', 'with', 'for', 'to', 'in', 'of',
+        'is', 'are', 'buy', 'looking', 'get', 'good', 'best', 'some', 'any', 'which', 'what',
+        'aur', 'kya', 'kharedna', 'chahiye', 'bhai', 'dikhao', 'hai', 'hu', 'ho', 'wala', 'wali'
+      ]);
+
+      // Tokenize and clean search terms
+      const tokens = rawTerm
+        .toLowerCase()
+        .replace(/[^\w\s]/gi, ' ')
+        .split(/\s+/)
+        .filter((t) => t.length > 1 && !stopWords.has(t));
+
+      const searchTerms = tokens.length > 0 ? tokens : [rawTerm];
+
+      // Build OR conditions across all NLP extracted keywords
+      const searchConditions: Prisma.ProductWhereInput[] = [];
+
+      for (const term of searchTerms) {
+        searchConditions.push(
+          { name: { contains: term, mode: 'insensitive' } },
+          { description: { contains: term, mode: 'insensitive' } },
+          { category: { contains: term, mode: 'insensitive' } },
+          { sku: { contains: term, mode: 'insensitive' } }
+        );
+      }
+
+      // Also include full raw string fallback
+      searchConditions.push(
+        { name: { contains: rawTerm, mode: 'insensitive' } },
+        { description: { contains: rawTerm, mode: 'insensitive' } }
+      );
+
+      where.OR = searchConditions;
     }
 
     let orderBy: Prisma.ProductOrderByWithRelationInput = { merchantScore: 'desc' };

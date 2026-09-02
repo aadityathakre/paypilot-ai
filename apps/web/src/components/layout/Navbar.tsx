@@ -9,7 +9,6 @@ import {
   X,
   User as UserIcon,
   LogOut,
-  ChevronDown,
   Search,
   Mic,
   MicOff,
@@ -28,14 +27,20 @@ export const Navbar: React.FC = () => {
   const [systemHealthy, setSystemHealthy] = useState<boolean | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
   const [userMenuOpen, setUserMenuOpen] = useState<boolean>(false);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState<string>('');
 
   const [liveResults, setLiveResults] = useState<any[]>([]);
   const [isSearchingLive, setIsSearchingLive] = useState<boolean>(false);
   const [showLiveDropdown, setShowLiveDropdown] = useState<boolean>(false);
   const [addedProductId, setAddedProductId] = useState<string | null>(null);
 
-  const { isListening, transcript, startListening, stopListening, isSupported } = useSpeechRecognition();
+  const { isListening, transcript, startListening, stopListening, isSupported } = useSpeechRecognition({
+    onSpeechComplete: (finalSpeech) => {
+      setSearchQuery(finalSpeech);
+      setShowLiveDropdown(false);
+      navigate(`/?search=${encodeURIComponent(finalSpeech)}`);
+    },
+  });
 
   useEffect(() => {
     fetch('/health')
@@ -250,6 +255,11 @@ export const Navbar: React.FC = () => {
               <>
                 <Link
                   to="/"
+                  onClick={() => {
+                    setSearchQuery('');
+                    navigate('/');
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  }}
                   className={`px-3 py-2 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5 ${
                     isCurrent('/')
                       ? 'bg-brand-500/15 text-brand-400 border border-brand-500/30'
@@ -276,20 +286,6 @@ export const Navbar: React.FC = () => {
                     </span>
                   )}
                 </Link>
-
-                {isAuthenticated && (
-                  <Link
-                    to="/orders"
-                    className={`px-3 py-2 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5 ${
-                      isCurrent('/orders')
-                        ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
-                        : 'text-slate-300 hover:text-white hover:bg-slate-800/50'
-                    }`}
-                  >
-                    <Package className="w-3.5 h-3.5 text-emerald-400" />
-                    <span>My Orders</span>
-                  </Link>
-                )}
               </>
             ) : (
               <>
@@ -320,25 +316,35 @@ export const Navbar: React.FC = () => {
             )}
           </nav>
 
-          {/* Right side User Profile & Actions */}
+          {/* Right side User Profile Avatar Badge */}
           <div className="hidden md:flex items-center gap-2.5">
             {isAuthenticated && user ? (
               <div className="relative">
-                <button
-                  onClick={() => setUserMenuOpen(!userMenuOpen)}
-                  className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-800/80 border border-white/10 hover:border-brand-500/40 text-xs transition-all"
+                <Link
+                  to="/profile"
+                  className="flex items-center gap-2.5 px-3.5 py-1.5 rounded-xl bg-slate-900 border border-white/15 hover:border-brand-500/50 text-xs transition-all shadow-md group"
                 >
-                  <div className="w-6 h-6 rounded-lg bg-gradient-to-tr from-brand-500 to-indigo-600 flex items-center justify-center text-white font-bold text-[10px]">
-                    {user.name.charAt(0).toUpperCase()}
-                  </div>
+                  {user.avatarUrl ? (
+                    <img
+                      src={user.avatarUrl}
+                      alt={user.name}
+                      className="w-7 h-7 rounded-lg object-cover border border-brand-400/40 shadow-glow-cyan"
+                    />
+                  ) : (
+                    <div className="w-7 h-7 rounded-lg bg-gradient-to-tr from-brand-500 to-indigo-600 flex items-center justify-center text-white font-black text-xs shadow-glow-cyan">
+                      {user.name.charAt(0).toUpperCase()}
+                    </div>
+                  )}
+
                   <div className="text-left">
-                    <span className="block font-semibold text-white leading-tight">{user.name}</span>
-                    <span className="block text-[9px] text-cyan-400 font-mono uppercase leading-tight">
-                      {user.role}
+                    <span className="block font-bold text-white group-hover:text-brand-300 transition-colors leading-tight">
+                      {user.name}
+                    </span>
+                    <span className="block text-[9px] text-emerald-400 font-mono uppercase leading-tight font-bold">
+                      {user.role} • Profile Hub
                     </span>
                   </div>
-                  <ChevronDown className="w-3.5 h-3.5 text-slate-400 ml-1" />
-                </button>
+                </Link>
 
                 {/* Dropdown */}
                 {userMenuOpen && (

@@ -92,6 +92,9 @@ export const HomePage: React.FC = () => {
   }
 
   const { addItem, itemCount } = useCart();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const searchQuery = searchParams.get('search');
+
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [inputMessage, setInputMessage] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
@@ -101,7 +104,15 @@ export const HomePage: React.FC = () => {
   
   // UI Window Controls & Chatbot Drawer State
   const [isMaximized, setIsMaximized] = useState<boolean>(false);
-  const [isChatbotOpen, setIsChatbotOpen] = useState<boolean>(false);
+  const [isChatbotOpen, setIsChatbotOpen] = useState<boolean>(searchParams.get('chat') === 'true');
+
+  // Voice Recognition Hook
+  const { isListening, transcript, startListening, stopListening, isSupported } = useSpeechRecognition({
+    onSpeechComplete: (finalSpeech) => {
+      setInputMessage(finalSpeech);
+      handleSendMessage(finalSpeech);
+    },
+  });
 
   // Storefront Catalog State
   const [catalogProducts, setCatalogProducts] = useState<any[]>([]);
@@ -125,9 +136,13 @@ export const HomePage: React.FC = () => {
     async function fetchCatalog() {
       setIsLoadingCatalog(true);
       try {
-        const url = selectedCategory === 'all'
-          ? '/api/products?limit=24'
-          : `/api/products?category=${selectedCategory}&limit=24`;
+        let url = '/api/products?limit=24';
+        if (searchQuery) {
+          url = `/api/products?search=${encodeURIComponent(searchQuery)}&limit=24`;
+        } else if (selectedCategory !== 'all') {
+          url = `/api/products?category=${selectedCategory}&limit=24`;
+        }
+
         const res = await fetch(url);
         const json = await res.json();
         if (json.success && json.data?.items) {
@@ -140,7 +155,7 @@ export const HomePage: React.FC = () => {
       }
     }
     fetchCatalog();
-  }, [selectedCategory]);
+  }, [selectedCategory, searchQuery]);
 
   // Dynamic Rotating Placeholders
   const [placeholderIndex, setPlaceholderIndex] = useState(0);
@@ -159,9 +174,6 @@ export const HomePage: React.FC = () => {
     }, 3500);
     return () => clearInterval(timer);
   }, []);
-
-  // Voice Recognition Hook
-  const { isListening, transcript, startListening, stopListening, isSupported } = useSpeechRecognition();
 
   useEffect(() => {
     if (transcript) {
@@ -227,8 +239,6 @@ export const HomePage: React.FC = () => {
     handleSendMessage(promptText);
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
-
-  const [searchParams] = useSearchParams();
 
   // Handle URL manual search params from top navbar or voice input
   useEffect(() => {
@@ -446,6 +456,25 @@ export const HomePage: React.FC = () => {
           ))}
         </div>
 
+        {/* Active Search Query Filter Banner */}
+        {searchQuery && (
+          <div className="p-3 rounded-2xl bg-brand-950/60 border border-brand-500/40 text-xs font-semibold text-brand-300 flex items-center justify-between animate-fade-in shadow-glow-cyan">
+            <div className="flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-brand-400" />
+              <span>Showing search results for <strong className="text-white font-mono">"{searchQuery}"</strong> ({catalogProducts.length} items found)</span>
+            </div>
+            <button
+              onClick={() => {
+                setSearchParams({});
+                setSelectedCategory('all');
+              }}
+              className="px-3 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-[11px] font-bold border border-white/10 transition-colors"
+            >
+              Clear Search Filter ✕
+            </button>
+          </div>
+        )}
+
         {/* Product Storefront Grid */}
         {isLoadingCatalog ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 py-8">
@@ -644,25 +673,25 @@ export const HomePage: React.FC = () => {
         onClick={() => {
           setIsChatbotOpen(!isChatbotOpen);
         }}
-        className="fixed bottom-6 right-6 z-50 px-4 py-3 rounded-full bg-gradient-to-tr from-brand-600 via-brand-500 to-indigo-600 text-white shadow-glow-cyan border-2 border-brand-400/80 hover:scale-105 active:scale-95 transition-all cursor-pointer flex items-center gap-2.5 backdrop-blur-2xl"
+        className="fixed bottom-6 right-6 z-50 px-5 py-3.5 rounded-full bg-gradient-to-r from-brand-500 via-indigo-600 to-purple-600 text-white shadow-glow-cyan border border-white/20 hover:scale-105 active:scale-95 transition-all cursor-pointer flex items-center gap-3 backdrop-blur-2xl ring-2 ring-brand-400/30"
         title="Open PayPilot AI Commerce Assistant"
       >
         <div className="relative">
-          <Bot className="w-5 h-5 text-white" />
-          <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse border border-slate-950" />
+          <Bot className="w-5 h-5 text-white animate-pulse" />
+          <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-emerald-400 border border-slate-950 shadow-glow-cyan" />
         </div>
-        <span className="text-xs font-bold text-white tracking-wide pr-1">
-          {isChatbotOpen ? 'Close AI Chat' : '🤖 Ask PayPilot AI'}
+        <span className="text-xs font-black tracking-wide text-white">
+          {isChatbotOpen ? 'Minimize Assistant' : '✨ PayPilot AI Agent'}
         </span>
       </button>
 
       {/* Floating AI Chatbot Modal Drawer Overlay */}
       {isChatbotOpen && (
         <div 
-          className={`fixed z-50 glass-panel border border-brand-500/40 shadow-2xl rounded-2xl flex flex-col backdrop-blur-2xl transition-all duration-300 animate-fade-in ${
+          className={`fixed z-50 rounded-3xl flex flex-col backdrop-blur-3xl border border-brand-500/50 shadow-2xl transition-all duration-300 animate-fade-in ${
             isMaximized
-              ? 'fixed inset-3 sm:inset-6 p-5 sm:p-6 bg-slate-950/95 overflow-hidden'
-              : 'bottom-20 right-4 sm:right-6 w-[92vw] sm:w-[480px] h-[600px] p-4 bg-slate-950/90'
+              ? 'fixed inset-3 sm:inset-6 p-5 sm:p-6 bg-slate-950/95 overflow-hidden ring-1 ring-white/10'
+              : 'bottom-22 right-4 sm:right-6 w-[92vw] sm:w-[500px] h-[620px] p-5 bg-slate-950/95 ring-2 ring-brand-500/30 shadow-glow-indigo'
           }`}
         >
           {/* Chat Header */}

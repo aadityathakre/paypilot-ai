@@ -12,6 +12,10 @@ interface SafeUser {
   name: string;
   email: string;
   role: UserRole;
+  walletBalanceInr: number;
+  avatarUrl?: string | null;
+  phoneNumber?: string | null;
+  emailVerified: boolean;
   createdAt: Date;
   merchant?: {
     id: string;
@@ -39,21 +43,22 @@ export class AuthService {
     }
 
     const passwordHash = await bcrypt.hash(input.password, 10);
+    const userRole = input.role || UserRole.CUSTOMER;
 
     const user = await withDbRetry(() => prisma.user.create({
       data: {
         name: input.name,
         email: input.email,
         passwordHash,
-        role: input.role,
+        role: userRole,
+        walletBalancePaise: BigInt(1000000), // ₹10,000 default test balance
       },
     }), 'auth.register.createUser');
 
-    let merchantId: string | undefined;
     let merchantData = null;
+    let merchantId: string | undefined;
 
-    // If registered as a merchant, create default Merchant organization and Policy
-    if (input.role === UserRole.MERCHANT) {
+    if (userRole === UserRole.MERCHANT) {
       const merchant = await withDbRetry(() => prisma.merchant.create({
         data: {
           ownerUserId: user.id,
@@ -88,6 +93,10 @@ export class AuthService {
         name: user.name,
         email: user.email,
         role: user.role,
+        walletBalanceInr: Number(user.walletBalancePaise) / 100,
+        avatarUrl: user.avatarUrl,
+        phoneNumber: user.phoneNumber,
+        emailVerified: user.emailVerified,
         createdAt: user.createdAt,
         merchant: merchantData,
       },
@@ -134,6 +143,10 @@ export class AuthService {
         name: user.name,
         email: user.email,
         role: user.role,
+        walletBalanceInr: Number(user.walletBalancePaise) / 100,
+        avatarUrl: user.avatarUrl,
+        phoneNumber: user.phoneNumber,
+        emailVerified: user.emailVerified,
         createdAt: user.createdAt,
         merchant: primaryMerchant,
       },
@@ -164,8 +177,55 @@ export class AuthService {
       name: user.name,
       email: user.email,
       role: user.role,
+      walletBalanceInr: Number(user.walletBalancePaise) / 100,
+      avatarUrl: user.avatarUrl,
+      phoneNumber: user.phoneNumber,
+      emailVerified: user.emailVerified,
       createdAt: user.createdAt,
       merchant: user.merchants[0] || null,
+    };
+  }
+
+  /**
+   * Top up customer wallet balance with Razorpay payment simulation
+   */
+  static async topupWallet(userId: string, amountInr: number, paymentId?: string): Promise<{ success: boolean; walletBalanceInr: number }> {
+    if (amountInr <= 0) {
+      throw new AppError('Top-up amount must be greater than zero.', 400, 'INVALID_AMOUNT');
+    }
+
+    const amountPaise = BigInt(Math.round(amountInr * 100));
+
+    const updatedUser = await withDbRetry(() => prisma.user.update({
+      where: { id: userId },
+      data: {
+        walletBalancePaise: {
+          increment: amountPaise,
+        },
+      },
+    }), 'auth.topupWallet');
+
+    // Fetch primary merchant for audit log
+    const primaryMerchant = await prisma.merchant.findFirst();
+    if (primaryMerchant) {
+      await prisma.auditEvent.create({
+        data: {
+          merchantId: primaryMerchant.id,
+          customerId: userId,
+          eventType: 'WALLET_TOPUP_SUCCESS',
+          actorType: 'CUSTOMER',
+          data: {
+            amountInr,
+            paymentId: paymentId || `pay_topup_${Date.now()}`,
+            newBalanceInr: Number(updatedUser.walletBalancePaise) / 100,
+          },
+        },
+      }).catch(() => null);
+    }
+
+    return {
+      success: true,
+      walletBalanceInr: Number(updatedUser.walletBalancePaise) / 100,
     };
   }
 
@@ -179,48 +239,62 @@ export class AuthService {
   }
 
   /**
-   * Forgot password trigger
+   * Forgot password: Generate 6-digit OTP, set 5-min expiry in DB, and send via Nodemailer
    */
-  static async forgotPassword(email: string): Promise<{ sent: boolean; message: string }> {
+  static async requestForgotPasswordOtp(email: string): Promise<{ sent: boolean; message: string }> {
     const user = await withDbRetry(() => prisma.user.findUnique({ where: { email } }));
     if (!user) {
-      // Do not reveal email existence for security
-      return { sent: true, message: 'If an account exists with this email, a reset link has been dispatched.' };
+      throw new AppError('No account found with this email address.', 404, 'USER_NOT_FOUND');
     }
 
-    // Generate token
-    const resetToken = jwt.sign({ id: user.id, purpose: 'PASSWORD_RESET' }, env.JWT_SECRET, { expiresIn: '1h' });
+    const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+    const otpExpiresAt = new Date(Date.now() + 5 * 60 * 1000);
 
-    // Send email asynchronously
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        otpCode,
+        otpExpiresAt,
+      },
+    });
+
     const { emailService } = await import('../../integrations/email/email.service.js');
-    emailService.sendPasswordResetEmail({
+    emailService.sendForgotPasswordOtpEmail({
       toEmail: user.email,
       userName: user.name,
-      resetToken,
+      otpCode,
     }).catch(() => null);
 
-    return { sent: true, message: 'If an account exists with this email, a reset link has been dispatched.' };
+    return { sent: true, message: `Password reset 6-digit OTP code sent to ${email} via Nodemailer. Code is valid for 5 minutes.` };
   }
 
   /**
-   * Reset password with valid token
+   * Reset password using verified 6-digit OTP from PostgreSQL DB
    */
-  static async resetPassword(token: string, newPassword: string): Promise<{ success: boolean; message: string }> {
-    try {
-      const decoded = jwt.verify(token, env.JWT_SECRET) as any;
-      if (decoded.purpose !== 'PASSWORD_RESET') {
-        throw new AppError('Invalid or expired reset token.', 400, 'INVALID_TOKEN');
-      }
-
-      const passwordHash = await bcrypt.hash(newPassword, 10);
-      await prisma.user.update({
-        where: { id: decoded.id },
-        data: { passwordHash },
-      });
-
-      return { success: true, message: 'Password updated successfully. You can now login.' };
-    } catch {
-      throw new AppError('Invalid or expired reset token.', 400, 'INVALID_TOKEN');
+  static async resetPasswordWithOtp(email: string, otpCode: string, newPassword: string): Promise<{ success: boolean; message: string }> {
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (!user) {
+      throw new AppError('No account found with this email address.', 404, 'USER_NOT_FOUND');
     }
+
+    if (!user.otpCode || user.otpCode !== otpCode.trim()) {
+      throw new AppError('Invalid OTP code. Please check your email inbox.', 400, 'OTP_MISMATCH');
+    }
+
+    if (!user.otpExpiresAt || new Date() > user.otpExpiresAt) {
+      throw new AppError('OTP code has expired (5-minute limit). Please request a new OTP.', 400, 'OTP_EXPIRED');
+    }
+
+    const passwordHash = await bcrypt.hash(newPassword, 10);
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        passwordHash,
+        otpCode: null,
+        otpExpiresAt: null,
+      },
+    });
+
+    return { success: true, message: 'Password updated successfully! You can now log in with your new password.' };
   }
 }

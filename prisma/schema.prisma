@@ -73,13 +73,19 @@ enum PaymentStatus {
 // ----------------------------------------------------
 
 model User {
-  id           String    @id @default(uuid())
-  name         String
-  email        String    @unique
-  passwordHash String
-  role         UserRole  @default(CUSTOMER)
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  id                 String    @id @default(uuid())
+  name               String
+  email              String    @unique
+  passwordHash       String
+  role               UserRole  @default(CUSTOMER)
+  walletBalancePaise BigInt    @default(1000000) // ₹10,000 default test balance
+  avatarUrl          String?
+  phoneNumber        String?
+  emailVerified      Boolean   @default(false)
+  otpCode            String?
+  otpExpiresAt       DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
 
   // Relationships
   merchants     Merchant[]

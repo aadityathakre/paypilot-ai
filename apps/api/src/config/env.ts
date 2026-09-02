@@ -17,6 +17,9 @@ const envSchema = z.object({
   RAZORPAY_KEY_ID: z.string().optional().default('rzp_test_placeholder'),
   RAZORPAY_KEY_SECRET: z.string().optional().default('placeholder_secret'),
   RAZORPAY_WEBHOOK_SECRET: z.string().optional().default('placeholder_webhook_secret'),
+  CLOUDINARY_CLOUD_NAME: z.string().optional().default('ddf3l67z9'),
+  CLOUDINARY_API_KEY: z.string().optional().default('481252539828895'),
+  CLOUDINARY_API_SECRET: z.string().optional().default('es-vUyVgHkZpBb0lVpq1LuBnshA'),
 });
 
 const parsed = envSchema.safeParse(process.env);

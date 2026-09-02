@@ -5,6 +5,10 @@ export interface User {
   name: string;
   email: string;
   role: 'CUSTOMER' | 'MERCHANT' | 'ADMIN';
+  walletBalanceInr?: number;
+  avatarUrl?: string | null;
+  phoneNumber?: string | null;
+  emailVerified?: boolean;
   merchant?: {
     id: string;
     name: string;
@@ -21,6 +25,7 @@ interface AuthContextType {
   register: (name: string, email: string, password: string, role?: 'CUSTOMER' | 'MERCHANT') => Promise<boolean>;
   quickLoginAs: (role: 'CUSTOMER' | 'MERCHANT') => Promise<boolean>;
   logout: () => void;
+  refreshUser: () => Promise<void>;
   openAuthModal: () => void;
   closeAuthModal: () => void;
 }
@@ -117,6 +122,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.setItem('paypilot_logged_out', 'true');
   };
 
+  const refreshUser = async () => {
+    if (!token) return;
+    try {
+      const res = await fetch('/api/auth/me', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (data.success && data.data?.user) {
+        setUser(data.data.user);
+        localStorage.setItem('paypilot_user', JSON.stringify(data.data.user));
+      }
+    } catch (err) {
+      console.error('Failed to refresh user:', err);
+    }
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -128,6 +149,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         register,
         quickLoginAs,
         logout,
+        refreshUser,
         openAuthModal: () => setIsAuthModalOpen(true),
         closeAuthModal: () => setIsAuthModalOpen(false),
       }}
