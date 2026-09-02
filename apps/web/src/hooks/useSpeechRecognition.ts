@@ -9,11 +9,11 @@ interface UseSpeechRecognitionReturn {
   isListening: boolean;
   transcript: string;
   isSupported: boolean;
-  startListening: () => void;
+  startListening: (playGreeting?: boolean) => void;
   stopListening: () => void;
   resetTranscript: () => void;
-  speakGreeting: () => void;
-  speakText: (textToSpeak: string) => void;
+  speakGreeting: (onGreetingEnd?: () => void) => void;
+  speakText: (textToSpeak: string, onEnd?: () => void) => void;
 }
 
 export function useSpeechRecognition(options?: UseSpeechRecognitionOptions): UseSpeechRecognitionReturn {
@@ -42,9 +42,17 @@ export function useSpeechRecognition(options?: UseSpeechRecognitionOptions): Use
   };
 
   // Indian Female Voice Synthesis Helper
-  const speakText = useCallback((textToSpeak: string) => {
-    if (!('speechSynthesis' in window) || options?.silentMode) return;
-    window.speechSynthesis.cancel(); // cancel previous audio
+  const speakText = useCallback((textToSpeak: string, onEnd?: () => void) => {
+    if (!('speechSynthesis' in window) || options?.silentMode) {
+      if (onEnd) onEnd();
+      return;
+    }
+    
+    try {
+      window.speechSynthesis.cancel(); // cancel previous speech
+    } catch {
+      // silent
+    }
 
     const utterance = new SpeechSynthesisUtterance(textToSpeak);
     utterance.lang = getLangCode();
@@ -62,12 +70,19 @@ export function useSpeechRecognition(options?: UseSpeechRecognitionOptions): Use
       utterance.voice = femaleIndianVoice;
     }
 
+    if (onEnd) {
+      utterance.onend = () => onEnd();
+      utterance.onerror = () => onEnd();
+    }
+
     window.speechSynthesis.speak(utterance);
   }, [options?.silentMode]);
 
-  const speakGreeting = useCallback(() => {
+  const speakGreeting = useCallback((onGreetingEnd?: () => void) => {
     if (!options?.silentMode) {
-      speakText(getGreetingText());
+      speakText(getGreetingText(), onGreetingEnd);
+    } else if (onGreetingEnd) {
+      onGreetingEnd();
     }
   }, [options?.silentMode, speakText]);
 
@@ -82,7 +97,11 @@ export function useSpeechRecognition(options?: UseSpeechRecognitionOptions): Use
     }
     setIsListening(false);
     if ('speechSynthesis' in window) {
-      window.speechSynthesis.cancel();
+      try {
+        window.speechSynthesis.cancel();
+      } catch {
+        // silent
+      }
     }
     if (textToSearch && options?.onSpeechComplete) {
       options.onSpeechComplete(textToSearch);
@@ -100,6 +119,10 @@ export function useSpeechRecognition(options?: UseSpeechRecognitionOptions): Use
         recognition.interimResults = true;
         recognition.lang = getLangCode();
 
+        recognition.onstart = () => {
+          setIsListening(true);
+        };
+
         recognition.onresult = (event: any) => {
           let currentTranscript = '';
           for (let i = event.resultIndex; i < event.results.length; i++) {
@@ -114,20 +137,22 @@ export function useSpeechRecognition(options?: UseSpeechRecognitionOptions): Use
             if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
             silenceTimerRef.current = setTimeout(() => {
               handleSpeechSilenceDone();
-            }, 1800); // 1.8 seconds of silence auto-stops and triggers search!
+            }, 1500); // 1.5 seconds of silence auto-stops and triggers search!
           }
         };
 
         recognition.onerror = (event: any) => {
           console.warn('Speech recognition notice:', event.error);
+          if (event.error === 'no-speech' || event.error === 'network') {
+            setIsListening(false);
+          }
         };
 
         recognition.onend = () => {
-          // If stopped while in listening mode with transcript, complete speech search
+          setIsListening(false);
           if (latestTranscriptRef.current.trim() && options?.onSpeechComplete) {
             options.onSpeechComplete(latestTranscriptRef.current.trim());
           }
-          setIsListening(false);
         };
 
         recognitionRef.current = recognition;
@@ -137,34 +162,33 @@ export function useSpeechRecognition(options?: UseSpeechRecognitionOptions): Use
     }
   }, [handleSpeechSilenceDone, options]);
 
-  const startListening = useCallback(() => {
+  const startListeningDirect = useCallback(() => {
     setTranscript('');
     latestTranscriptRef.current = '';
-    setIsListening(true);
 
-    // 1. Play voice welcome greeting ("Welcome to PayPilot...")
-    speakGreeting();
-
-    // 2. Start Web Speech recognition
     if (recognitionRef.current) {
       try {
         recognitionRef.current.lang = getLangCode();
         recognitionRef.current.start();
-        return;
+        setIsListening(true);
       } catch (err) {
         console.warn('Speech recognition start notice:', err);
+        setIsListening(true);
       }
+    } else {
+      setIsListening(true);
     }
+  }, []);
 
-    // Fallback simulation if mic permissions are blocked by browser
-    if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
-    silenceTimerRef.current = setTimeout(() => {
-      const sample = 'I need a coding laptop with good display';
-      setTranscript(sample);
-      latestTranscriptRef.current = sample;
-      handleSpeechSilenceDone();
-    }, 3200);
-  }, [handleSpeechSilenceDone, speakGreeting]);
+  const startListening = useCallback((playGreeting = false) => {
+    if (playGreeting && !options?.silentMode) {
+      speakGreeting(() => {
+        startListeningDirect();
+      });
+    } else {
+      startListeningDirect();
+    }
+  }, [options?.silentMode, speakGreeting, startListeningDirect]);
 
   const stopListening = useCallback(() => {
     setIsListening(false);
@@ -177,7 +201,11 @@ export function useSpeechRecognition(options?: UseSpeechRecognitionOptions): Use
       }
     }
     if ('speechSynthesis' in window) {
-      window.speechSynthesis.cancel();
+      try {
+        window.speechSynthesis.cancel();
+      } catch {
+        // silent
+      }
     }
   }, []);
 

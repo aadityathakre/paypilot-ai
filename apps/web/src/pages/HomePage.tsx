@@ -440,8 +440,7 @@ export const HomePage: React.FC = () => {
             type="button"
             onClick={() => {
               setIsVoiceModalOpen(true);
-              voiceAgent.speakGreeting();
-              voiceAgent.startListening();
+              voiceAgent.startListening(true);
             }}
             className="px-6 py-3 rounded-2xl bg-gradient-to-r from-brand-500 via-indigo-600 to-purple-600 hover:from-brand-400 hover:to-indigo-500 text-white text-xs sm:text-sm font-bold shadow-glow-cyan transition-all flex items-center gap-2.5 hover:scale-105 active:scale-95 border border-white/20 ring-2 ring-brand-400/30 cursor-pointer"
           >
@@ -1180,7 +1179,7 @@ export const HomePage: React.FC = () => {
                   if (voiceAgent.isListening) {
                     voiceAgent.stopListening();
                   } else {
-                    voiceAgent.startListening();
+                    voiceAgent.startListening(false);
                   }
                 }}
                 className={`px-5 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
