@@ -6,6 +6,9 @@ import { createSessionSchema, sendMessageSchema } from './agent.schema.js';
 
 export const agentRouter = Router();
 
+// Agent-Readable Catalog Endpoint for AI Buyers (ACP / UAP / AP2 / x402)
+agentRouter.get('/catalog', AgentController.getAgentReadableCatalog);
+
 agentRouter.use(authenticateJwt);
 
 agentRouter.post('/sessions', validateBody(createSessionSchema), AgentController.createSession);

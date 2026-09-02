@@ -16,6 +16,10 @@ import {
   AlertCircle,
   LogOut,
   Edit3,
+  Activity,
+  FileText,
+  Terminal,
+  ExternalLink,
 } from 'lucide-react';
 import { RazorpayModal } from '../components/payment/RazorpayModal';
 
@@ -47,7 +51,7 @@ interface Order {
 
 export const CustomerProfilePage: React.FC = () => {
   const { user, token, refreshUser, logout } = useAuth();
-  const [activeTab, setActiveTab] = useState<'profile' | 'wallet' | 'orders' | 'language'>('profile');
+  const [activeTab, setActiveTab] = useState<'profile' | 'wallet' | 'orders' | 'language' | 'audit'>('profile');
 
   // Form states
   const [name, setName] = useState(user?.name || '');
@@ -65,6 +69,10 @@ export const CustomerProfilePage: React.FC = () => {
   // Orders state
   const [orders, setOrders] = useState<Order[]>([]);
   const [isLoadingOrders, setIsLoadingOrders] = useState(false);
+
+  // Audit Events state
+  const [auditEvents, setAuditEvents] = useState<any[]>([]);
+  const [isLoadingAudit, setIsLoadingAudit] = useState(false);
 
   // Razorpay Top-Up state
   const [isTopupModalOpen, setIsTopupModalOpen] = useState(false);
@@ -107,6 +115,21 @@ export const CustomerProfilePage: React.FC = () => {
       // silent catch
     } finally {
       setIsLoadingOrders(false);
+    }
+  };
+
+  const fetchAuditEvents = async () => {
+    setIsLoadingAudit(true);
+    try {
+      const res = await fetch('/api/audit/events?limit=30');
+      const json = await res.json();
+      if (res.ok && json.success && json.data?.items) {
+        setAuditEvents(json.data.items);
+      }
+    } catch {
+      // silent catch
+    } finally {
+      setIsLoadingAudit(false);
     }
   };
 
@@ -426,6 +449,21 @@ export const CustomerProfilePage: React.FC = () => {
         >
           <Globe className="w-4 h-4" />
           <span>Language (भाषा)</span>
+        </button>
+
+        <button
+          onClick={() => {
+            setActiveTab('audit');
+            fetchAuditEvents();
+          }}
+          className={`pb-3 px-4 text-xs font-bold flex items-center gap-2 border-b-2 transition-all whitespace-nowrap ${
+            activeTab === 'audit'
+              ? 'border-amber-400 text-amber-300'
+              : 'border-transparent text-slate-400 hover:text-slate-200'
+          }`}
+        >
+          <Activity className="w-4 h-4 text-amber-400" />
+          <span>Track 01 Audit Trail</span>
         </button>
       </div>
 
@@ -774,6 +812,129 @@ export const CustomerProfilePage: React.FC = () => {
               </div>
               {language === 'mr' && <CheckCircle2 className="w-5 h-5 text-emerald-400 mt-4" />}
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* TAB 5: TRACK 01 AUDIT TRAIL & GUARDRAILS */}
+      {activeTab === 'audit' && (
+        <div className="space-y-6 max-w-4xl mx-auto animate-fade-in">
+          {/* Hackathon Track 01 Banner */}
+          <div className="glass-panel rounded-2xl p-6 border border-amber-500/30 space-y-4 bg-gradient-to-r from-amber-950/40 via-slate-900 to-slate-950">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/10 pb-4">
+              <div>
+                <span className="text-[11px] font-extrabold text-amber-400 uppercase tracking-widest px-2.5 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/20 font-mono">
+                  Track 01: AI Growth & Agentic Commerce
+                </span>
+                <h3 className="text-lg font-black text-white mt-1">
+                  Money Actions Audit Trail & Bounded Guardrails
+                </h3>
+              </div>
+              <a
+                href="/api/agent/catalog"
+                target="_blank"
+                rel="noreferrer"
+                className="px-3.5 py-2 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 border border-amber-500/40 text-xs font-bold flex items-center gap-1.5 transition-all shrink-0 cursor-pointer"
+              >
+                <Terminal className="w-4 h-4 text-amber-400" />
+                <span>Agent Catalog (ACP / UAP Schema)</span>
+                <ExternalLink className="w-3.5 h-3.5" />
+              </a>
+            </div>
+
+            {/* Three Pillar Compliance Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+              <div className="p-4 rounded-xl bg-slate-900/90 border border-white/10 space-y-1.5">
+                <span className="font-bold text-amber-300 flex items-center gap-1.5">
+                  <ShieldCheck className="w-4 h-4 text-amber-400" />
+                  Bounded & Gated
+                </span>
+                <p className="text-slate-400 text-[11px] leading-relaxed">
+                  Every order is validated against merchant policy limits (Max ₹100,000) and signed with PostgreSQL HMAC SHA256 hashes.
+                </p>
+              </div>
+
+              <div className="p-4 rounded-xl bg-slate-900/90 border border-white/10 space-y-1.5">
+                <span className="font-bold text-emerald-300 flex items-center gap-1.5">
+                  <Activity className="w-4 h-4 text-emerald-400" />
+                  100% Explainable
+                </span>
+                <p className="text-slate-400 text-[11px] leading-relaxed">
+                  All money events (`PAYMENT_VERIFIED`, `WALLET_PAYMENT_SUCCESS`) log correlation IDs and actor types in `audit_events`.
+                </p>
+              </div>
+
+              <div className="p-4 rounded-xl bg-slate-900/90 border border-white/10 space-y-1.5">
+                <span className="font-bold text-cyan-300 flex items-center gap-1.5">
+                  <FileText className="w-4 h-4 text-cyan-400" />
+                  Graceful Failure Recovery
+                </span>
+                <p className="text-slate-400 text-[11px] leading-relaxed">
+                  Insufficient funds calculate exact shortfall (`₹required` - `₹balance`) and provide 1-click Razorpay top-up recovery.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Audit Events Stream */}
+          <div className="glass-panel rounded-2xl p-6 border border-white/10 space-y-4">
+            <div className="flex items-center justify-between">
+              <h4 className="text-xs font-bold text-white flex items-center gap-2">
+                <Activity className="w-4 h-4 text-amber-400" />
+                Live Money Actions Audit Log (PostgreSQL DB)
+              </h4>
+              <button
+                type="button"
+                onClick={fetchAuditEvents}
+                className="px-3 py-1 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold flex items-center gap-1 transition-all"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${isLoadingAudit ? 'animate-spin' : ''}`} />
+                <span>Refresh Logs</span>
+              </button>
+            </div>
+
+            {isLoadingAudit ? (
+              <div className="py-8 text-center text-xs text-slate-400">Loading live audit events...</div>
+            ) : auditEvents.length === 0 ? (
+              <div className="py-8 text-center text-xs text-slate-400">No audit events recorded yet. Perform a checkout or top-up!</div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead>
+                    <tr className="border-b border-white/10 text-slate-400 font-mono text-[10px]">
+                      <th className="pb-2">EVENT TYPE</th>
+                      <th className="pb-2">ACTOR TYPE</th>
+                      <th className="pb-2">REQUEST ID</th>
+                      <th className="pb-2">TIMESTAMP</th>
+                      <th className="pb-2 text-right">AUDIT DATA</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-white/5 font-mono">
+                    {auditEvents.map((evt: any) => (
+                      <tr key={evt.id} className="hover:bg-white/5 transition-colors">
+                        <td className="py-3 pr-3 font-bold text-amber-300">
+                          {evt.eventType}
+                        </td>
+                        <td className="py-3 pr-3 text-slate-300">
+                          {evt.actorType}
+                        </td>
+                        <td className="py-3 pr-3 text-slate-400 text-[10px]">
+                          {evt.requestId || 'req_system'}
+                        </td>
+                        <td className="py-3 pr-3 text-slate-400 text-[10px]">
+                          {new Date(evt.createdAt).toLocaleTimeString()}
+                        </td>
+                        <td className="py-3 text-right font-sans">
+                          <span className="text-[11px] font-mono text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded border border-emerald-500/20">
+                            {JSON.stringify(evt.data || {}).slice(0, 45)}...
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         </div>
       )}
