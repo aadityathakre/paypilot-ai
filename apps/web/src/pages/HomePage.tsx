@@ -433,14 +433,6 @@ export const HomePage: React.FC = () => {
               {catalogProducts.length} Items
             </span>
           </div>
-
-          <button
-            onClick={() => setIsChatbotOpen(!isChatbotOpen)}
-            className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-brand-500 to-indigo-600 hover:from-brand-400 hover:to-indigo-500 text-white text-xs font-bold shadow-glow-cyan transition-all flex items-center gap-2"
-          >
-            <Bot className="w-4 h-4" />
-            <span>Ask PayPilot AI Agent</span>
-          </button>
         </div>
 
         {/* Category Pills */}
@@ -677,7 +669,7 @@ export const HomePage: React.FC = () => {
         onClick={() => {
           setIsChatbotOpen(!isChatbotOpen);
         }}
-        className="fixed bottom-6 right-6 z-50 px-5 py-3.5 rounded-full bg-gradient-to-r from-brand-500 via-indigo-600 to-purple-600 text-white shadow-glow-cyan border border-white/20 hover:scale-105 active:scale-95 transition-all cursor-pointer flex items-center gap-3 backdrop-blur-2xl ring-2 ring-brand-400/30"
+        className="fixed bottom-6 right-6 z-[90] px-5 py-3.5 rounded-full bg-gradient-to-r from-brand-500 via-indigo-600 to-purple-600 text-white shadow-glow-cyan border border-white/20 hover:scale-105 active:scale-95 transition-all cursor-pointer flex items-center gap-3 backdrop-blur-2xl ring-2 ring-brand-400/30"
         title="Open PayPilot AI Commerce Assistant"
       >
         <div className="relative">
@@ -692,10 +684,10 @@ export const HomePage: React.FC = () => {
       {/* Floating AI Chatbot Modal Drawer Overlay */}
       {isChatbotOpen && (
         <div 
-          className={`fixed z-50 rounded-3xl flex flex-col backdrop-blur-3xl border border-brand-500/50 shadow-2xl transition-all duration-300 animate-fade-in ${
+          className={`fixed z-[100] rounded-3xl flex flex-col backdrop-blur-3xl border border-brand-500/50 shadow-2xl transition-all duration-300 animate-fade-in ${
             isMaximized
-              ? 'fixed inset-3 sm:inset-6 p-5 sm:p-6 bg-slate-950/95 overflow-hidden ring-1 ring-white/10'
-              : 'bottom-22 right-4 sm:right-6 w-[92vw] sm:w-[500px] h-[620px] p-5 bg-slate-950/95 ring-2 ring-brand-500/30 shadow-glow-indigo'
+              ? 'inset-3 sm:inset-6 p-5 sm:p-6 bg-slate-950/95 overflow-hidden ring-1 ring-white/10'
+              : 'bottom-24 right-4 sm:right-6 w-[92vw] sm:w-[500px] h-[620px] p-5 bg-slate-950/95 ring-2 ring-brand-500/30 shadow-glow-indigo'
           }`}
         >
           {/* Chat Header */}
