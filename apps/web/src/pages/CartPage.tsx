@@ -1,30 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { ShoppingCart, ShieldCheck, ArrowRight, Trash2, Plus, Minus, ArrowLeft, AlertTriangle, Sparkles } from 'lucide-react';
-
-interface CartItem {
-  id: string;
-  productId: string;
-  product: {
-    id: string;
-    sku: string;
-    name: string;
-    category: string;
-    imageUrl: string | null;
-    stock: number;
-  };
-  quantity: number;
-  unitPriceInr: number;
-  totalPriceInr: number;
-}
-
-interface CartData {
-  id: string;
-  items: CartItem[];
-  itemCount: number;
-  subtotalInr: number;
-  totalInr: number;
-}
+import { useCart } from '../context/CartContext';
+import { useAuth } from '../context/AuthContext';
 
 interface PolicyStatus {
   approved: boolean;
@@ -35,32 +13,20 @@ interface PolicyStatus {
 }
 
 export const CartPage: React.FC = () => {
-  const [cart, setCart] = useState<CartData | null>(null);
+  const { cart, loading, updateQuantity, removeItem } = useCart();
+  const { token } = useAuth();
   const [policyStatus, setPolicyStatus] = useState<PolicyStatus | null>(null);
-  const [token, setToken] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
 
-  // Authenticate and load cart
-  const fetchCartAndPolicy = async (authToken?: string) => {
-    const activeToken = authToken || token;
-    if (!activeToken) return;
-
-    try {
-      // 1. Fetch Cart
-      const cartRes = await fetch('/api/carts/active', {
-        headers: { Authorization: `Bearer ${activeToken}` },
-      });
-      const cartJson = await cartRes.json();
-
-      if (cartJson.success && cartJson.data?.cart) {
-        setCart(cartJson.data.cart);
-
-        // 2. Validate Cart Policy
+  // Validate Cart Policy against current active cart
+  useEffect(() => {
+    async function validatePolicy() {
+      if (!token || !cart || cart.items.length === 0) return;
+      try {
         const policyRes = await fetch('/api/checkout/validate', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            Authorization: `Bearer ${activeToken}`,
+            Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify({ customerConfirmed: true }),
         });
@@ -68,77 +34,25 @@ export const CartPage: React.FC = () => {
         if (policyJson.data?.policy) {
           setPolicyStatus(policyJson.data.policy);
         }
-      }
-    } catch (err) {
-      console.error('Error fetching cart:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    async function init() {
-      try {
-        const loginRes = await fetch('/api/auth/login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: 'customer@paypilot.ai', password: 'CustomerPass@123' }),
-        });
-        const loginJson = await loginRes.json();
-        const authToken = loginJson.data?.token;
-        if (authToken) {
-          setToken(authToken);
-          await fetchCartAndPolicy(authToken);
-        }
       } catch (err) {
-        console.error('Auth failed in cart page:', err);
-        setLoading(false);
+        console.error('Error validating cart policy:', err);
       }
     }
 
-    init();
-  }, []);
+    validatePolicy();
+  }, [token, cart]);
 
   const handleUpdateQuantity = async (itemId: string, currentQty: number, change: number) => {
-    if (!token) return;
     const newQty = currentQty + change;
     if (newQty < 1) {
-      handleRemoveItem(itemId);
+      await removeItem(itemId);
       return;
     }
-
-    try {
-      const res = await fetch(`/api/carts/items/${itemId}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ quantity: newQty }),
-      });
-      const json = await res.json();
-      if (json.success) {
-        await fetchCartAndPolicy();
-      }
-    } catch (err) {
-      console.error('Update quantity failed:', err);
-    }
+    await updateQuantity(itemId, newQty);
   };
 
   const handleRemoveItem = async (itemId: string) => {
-    if (!token) return;
-    try {
-      const res = await fetch(`/api/carts/items/${itemId}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const json = await res.json();
-      if (json.success) {
-        await fetchCartAndPolicy();
-      }
-    } catch (err) {
-      console.error('Remove item failed:', err);
-    }
+    await removeItem(itemId);
   };
 
   return (

@@ -106,8 +106,9 @@ export const HomePage: React.FC = () => {
   const [isMaximized, setIsMaximized] = useState<boolean>(false);
   const [isChatbotOpen, setIsChatbotOpen] = useState<boolean>(searchParams.get('chat') === 'true');
 
-  // Voice Recognition Hook
-  const { isListening, transcript, startListening, stopListening, isSupported } = useSpeechRecognition({
+  // Voice Recognition Hook for Chatbot Drawer
+  const { isListening, transcript, startListening, stopListening, isSupported, speakGreeting } = useSpeechRecognition({
+    silentMode: true,
     onSpeechComplete: (finalSpeech) => {
       setInputMessage(finalSpeech);
       handleSendMessage(finalSpeech);
@@ -421,6 +422,22 @@ export const HomePage: React.FC = () => {
         <p className="text-sm sm:text-base text-slate-400">
           Discover verified products from PostgreSQL, score options with multi-signal ranking, and authorize payments with policy guardrails.
         </p>
+
+        {/* Talk with AI Agent Action Bar Below Navbar & Hero */}
+        <div className="pt-2 flex justify-center">
+          <button
+            type="button"
+            onClick={() => {
+              setIsChatbotOpen(true);
+              speakGreeting();
+              startListening();
+            }}
+            className="px-6 py-3 rounded-2xl bg-gradient-to-r from-brand-500 via-indigo-600 to-purple-600 hover:from-brand-400 hover:to-indigo-500 text-white text-xs sm:text-sm font-bold shadow-glow-cyan transition-all flex items-center gap-2.5 hover:scale-105 active:scale-95 border border-white/20 ring-2 ring-brand-400/30 cursor-pointer"
+          >
+            <Bot className="w-5 h-5 text-white animate-pulse" />
+            <span>🎙️ Talk with PayPilot AI Agent (Human-Like Voice)</span>
+          </button>
+        </div>
       </section>
 
       {/* Category Pills & Filter Bar */}
