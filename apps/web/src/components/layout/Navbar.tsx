@@ -270,6 +270,18 @@ export const Navbar: React.FC = () => {
                   <span>AI Storefront</span>
                 </Link>
 
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigate('/?chat=true');
+                    window.dispatchEvent(new CustomEvent('open_paypilot_chat'));
+                  }}
+                  className="px-3 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 bg-gradient-to-r from-brand-500 to-indigo-600 hover:from-brand-400 hover:to-indigo-500 text-white shadow-glow-cyan"
+                >
+                  <Bot className="w-3.5 h-3.5 text-white animate-pulse" />
+                  <span>✨ AI Agent</span>
+                </button>
+
                 <Link
                   to="/cart"
                   className={`px-3 py-2 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5 relative ${

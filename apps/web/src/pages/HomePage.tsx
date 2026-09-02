@@ -240,19 +240,23 @@ export const HomePage: React.FC = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  // Handle URL manual search params from top navbar or voice input
+  // Listen to open_paypilot_chat event or chat=true URL parameter
   useEffect(() => {
-    const q = searchParams.get('search');
-    if (q) {
+    const handleOpenChat = () => setIsChatbotOpen(true);
+    window.addEventListener('open_paypilot_chat', handleOpenChat);
+
+    if (searchParams.get('chat') === 'true') {
       setIsChatbotOpen(true);
-      handleSendMessage(`Search catalog for: ${q}`);
     }
+    return () => window.removeEventListener('open_paypilot_chat', handleOpenChat);
   }, [searchParams]);
 
   // Scroll to latest message
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, isProcessing]);
+    if (isChatbotOpen) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [messages, isProcessing, isChatbotOpen]);
 
   const handleSendMessage = async (textToSend?: string) => {
     const text = textToSend || inputMessage;
