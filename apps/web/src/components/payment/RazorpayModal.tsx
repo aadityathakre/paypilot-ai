@@ -123,7 +123,7 @@ export const RazorpayModal: React.FC<RazorpayModalProps> = ({
         prefill: {
           name: user?.name || 'Customer',
           email: user?.email || 'customer@paypilot.ai',
-          contact: '9821054321',
+          contact: user?.phoneNumber || '9821054321',
         },
         notes: {
           merchant_name: 'PayPilot AI',
