@@ -105,13 +105,24 @@ export const HomePage: React.FC = () => {
   // UI Window Controls & Chatbot Drawer State
   const [isMaximized, setIsMaximized] = useState<boolean>(false);
   const [isChatbotOpen, setIsChatbotOpen] = useState<boolean>(searchParams.get('chat') === 'true');
+  const [isVoiceModalOpen, setIsVoiceModalOpen] = useState<boolean>(false);
 
-  // Voice Recognition Hook for Chatbot Drawer
-  const { isListening, transcript, startListening, stopListening, isSupported, speakGreeting } = useSpeechRecognition({
+  // Voice Recognition Hook for Text Input Mic (Silent Mode)
+  const { isListening, transcript, startListening, stopListening, isSupported } = useSpeechRecognition({
     silentMode: true,
     onSpeechComplete: (finalSpeech) => {
       setInputMessage(finalSpeech);
       handleSendMessage(finalSpeech);
+    },
+  });
+
+  // Dedicated Voice Assistant Hook for Full-Screen Voice Agent Modal
+  const voiceAgent = useSpeechRecognition({
+    silentMode: false,
+    onSpeechComplete: (finalSpeech) => {
+      setSearchParams({ search: finalSpeech });
+      voiceAgent.speakText(`Searching catalog for ${finalSpeech}. Here are your recommended products!`);
+      setIsVoiceModalOpen(false);
     },
   });
 
@@ -428,9 +439,9 @@ export const HomePage: React.FC = () => {
           <button
             type="button"
             onClick={() => {
-              setIsChatbotOpen(true);
-              speakGreeting();
-              startListening();
+              setIsVoiceModalOpen(true);
+              voiceAgent.speakGreeting();
+              voiceAgent.startListening();
             }}
             className="px-6 py-3 rounded-2xl bg-gradient-to-r from-brand-500 via-indigo-600 to-purple-600 hover:from-brand-400 hover:to-indigo-500 text-white text-xs sm:text-sm font-bold shadow-glow-cyan transition-all flex items-center gap-2.5 hover:scale-105 active:scale-95 border border-white/20 ring-2 ring-brand-400/30 cursor-pointer"
           >
@@ -1114,6 +1125,85 @@ export const HomePage: React.FC = () => {
                 })()}
               </div>
             )}
+          </div>
+        </div>
+      )}
+      {/* Full-Screen Dedicated Voice Agent Modal Overlay */}
+      {isVoiceModalOpen && (
+        <div className="fixed inset-0 z-[150] bg-slate-950/90 backdrop-blur-2xl flex flex-col items-center justify-center p-6 text-center animate-fade-in">
+          <div className="max-w-md w-full glass-panel rounded-3xl p-8 border border-brand-500/40 space-y-6 shadow-2xl relative overflow-hidden ring-2 ring-brand-400/30">
+            {/* Top Close Button */}
+            <button
+              type="button"
+              onClick={() => {
+                voiceAgent.stopListening();
+                setIsVoiceModalOpen(false);
+              }}
+              className="absolute top-4 right-4 p-2 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-white transition-colors cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            {/* Voice Assistant Avatar / Mic Pulse */}
+            <div className="relative w-28 h-28 mx-auto flex items-center justify-center">
+              <div className="absolute inset-0 rounded-full bg-brand-500/20 animate-ping" />
+              <div className="absolute inset-2 rounded-full bg-gradient-to-r from-brand-500 via-indigo-600 to-purple-600 opacity-80 blur-md animate-pulse" />
+              <div className="relative w-20 h-20 rounded-full bg-slate-950 border-2 border-brand-400 flex items-center justify-center shadow-glow-cyan">
+                <Mic className="w-9 h-9 text-brand-400 animate-pulse" />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <h3 className="text-lg font-extrabold text-white tracking-tight flex items-center justify-center gap-2">
+                <span>PayPilot Voice Assistant</span>
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
+              </h3>
+              <p className="text-xs text-brand-300 font-mono">
+                {voiceAgent.isListening ? '🎙️ Listening to your voice request...' : 'Preparing voice assistant...'}
+              </p>
+            </div>
+
+            {/* Live Speech Transcript Box */}
+            <div className="p-4 rounded-2xl bg-slate-900/90 border border-white/10 text-xs text-slate-200 min-h-[70px] flex items-center justify-center font-medium italic">
+              {voiceAgent.transcript ? (
+                <span className="text-white not-italic font-sans font-semibold text-sm">"{voiceAgent.transcript}"</span>
+              ) : (
+                <span className="text-slate-500">"Speak your choice (e.g. 'coding laptop', 'brown switch keyboard under 5000')..."</span>
+              )}
+            </div>
+
+            {/* Control Buttons */}
+            <div className="flex items-center justify-center gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  if (voiceAgent.isListening) {
+                    voiceAgent.stopListening();
+                  } else {
+                    voiceAgent.startListening();
+                  }
+                }}
+                className={`px-5 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+                  voiceAgent.isListening
+                    ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40 hover:bg-rose-500/30'
+                    : 'bg-brand-500 text-slate-950 font-extrabold hover:bg-brand-400 shadow-glow-cyan'
+                }`}
+              >
+                {voiceAgent.isListening ? <MicOff className="w-4 h-4 text-rose-400" /> : <Mic className="w-4 h-4 text-slate-950" />}
+                <span>{voiceAgent.isListening ? 'Stop Recording' : 'Start Speaking'}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  voiceAgent.stopListening();
+                  setIsVoiceModalOpen(false);
+                }}
+                className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-semibold border border-white/10 cursor-pointer"
+              >
+                Cancel
+              </button>
+            </div>
           </div>
         </div>
       )}
