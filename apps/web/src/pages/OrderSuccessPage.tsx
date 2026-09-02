@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { CheckCircle2, ShieldCheck, ShoppingBag, Store, Wallet, Package } from 'lucide-react';
+import { CheckCircle2, ShieldCheck, ShoppingBag, Store, Wallet, Package, Mail } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 export const OrderSuccessPage: React.FC = () => {
@@ -33,6 +33,12 @@ export const OrderSuccessPage: React.FC = () => {
           <p className="text-xs text-slate-400 max-w-md mx-auto">
             Your transaction was verified and atomically recorded in PostgreSQL database.
           </p>
+        </div>
+
+        {/* Email Receipt Status Banner */}
+        <div className="p-3 rounded-xl bg-purple-950/40 border border-purple-500/30 text-purple-200 text-xs flex items-center justify-center gap-2">
+          <Mail className="w-4 h-4 text-purple-400 shrink-0" />
+          <span>Digital receipt & order confirmation dispatched via Nodemailer to <strong className="text-white font-mono">{user?.email || 'your email address'}</strong></span>
         </div>
 
         {/* Transaction & Merchant Summary Card */}

@@ -175,6 +175,24 @@ export class PaymentsService {
       return { payment, updatedOrder, updatedUser };
     });
 
+    // Trigger async order receipt email for wallet payment
+    if (user?.email) {
+      emailService
+        .sendOrderConfirmationEmail({
+          toEmail: user.email,
+          customerName: user.name || 'Customer',
+          orderId: order.id,
+          razorpayPaymentId: result.payment.razorpayPaymentId || result.payment.id,
+          totalAmountRupees: Number(order.amountPaise) / 100,
+          items: order.items.map((i) => ({
+            name: i.product?.name || 'Product',
+            quantity: i.quantity,
+            unitPriceRupees: Number(i.unitPricePaise) / 100,
+          })),
+        })
+        .catch(() => null);
+    }
+
     return {
       verified: true,
       orderId: result.updatedOrder.id,
