@@ -15,6 +15,7 @@ import {
   Globe,
   AlertCircle,
   LogOut,
+  Edit3,
 } from 'lucide-react';
 import { RazorpayModal } from '../components/payment/RazorpayModal';
 
@@ -51,6 +52,7 @@ export const CustomerProfilePage: React.FC = () => {
   // Form states
   const [name, setName] = useState(user?.name || '');
   const [phoneNumber, setPhoneNumber] = useState(user?.phoneNumber || '');
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [isUpdatingProfile, setIsUpdatingProfile] = useState(false);
   const [profileMsg, setProfileMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
@@ -127,6 +129,7 @@ export const CustomerProfilePage: React.FC = () => {
       const json = await res.json();
       if (res.ok && json.success) {
         setProfileMsg({ type: 'success', text: 'Profile details updated successfully!' });
+        setIsEditingProfile(false);
         await refreshUser();
       } else {
         setProfileMsg({ type: 'error', text: json.message || 'Failed to update profile details.' });
@@ -446,39 +449,40 @@ export const CustomerProfilePage: React.FC = () => {
       {/* TAB 1: PROFILE & PERSONAL DETAILS */}
       {activeTab === 'profile' && (
         <div className="glass-panel rounded-2xl p-6 border border-white/10 space-y-6 max-w-3xl mx-auto">
-          <h3 className="text-sm font-bold text-white flex items-center gap-2">
-            <UserIcon className="w-4 h-4 text-brand-400" />
-            Personal Information & Security
-          </h3>
+          <div className="flex items-center justify-between pb-3 border-b border-white/10">
+            <h3 className="text-sm font-bold text-white flex items-center gap-2">
+              <UserIcon className="w-4 h-4 text-brand-400" />
+              <span>Personal Information & Security</span>
+            </h3>
+            {!isEditingProfile && (
+              <button
+                type="button"
+                onClick={() => setIsEditingProfile(true)}
+                className="px-3.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-brand-300 hover:text-white border border-white/10 text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer shadow-sm"
+              >
+                <Edit3 className="w-3.5 h-3.5" />
+                <span>Edit Profile</span>
+              </button>
+            )}
+          </div>
 
-            <form onSubmit={handleUpdateProfile} className="space-y-4 text-xs">
+          {!isEditingProfile ? (
+            <div className="space-y-4 text-xs">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-slate-400 font-medium mb-1">Full Name</label>
-                  <input
-                    type="text"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    className="w-full bg-slate-900 border border-white/10 rounded-xl px-3.5 py-2.5 text-white focus:outline-none focus:border-brand-500"
-                    placeholder="Enter full name"
-                  />
+                <div className="p-3.5 rounded-xl bg-slate-900/90 border border-white/10 space-y-1">
+                  <span className="text-[10px] text-slate-400 font-mono block">Full Name</span>
+                  <span className="text-sm font-semibold text-white">{user?.name || 'Not provided'}</span>
                 </div>
 
-                <div>
-                  <label className="block text-slate-400 font-medium mb-1">Phone Number</label>
-                  <input
-                    type="text"
-                    value={phoneNumber}
-                    onChange={(e) => setPhoneNumber(e.target.value)}
-                    className="w-full bg-slate-900 border border-white/10 rounded-xl px-3.5 py-2.5 text-white focus:outline-none focus:border-brand-500"
-                    placeholder="+91 98765 43210"
-                  />
+                <div className="p-3.5 rounded-xl bg-slate-900/90 border border-white/10 space-y-1">
+                  <span className="text-[10px] text-slate-400 font-mono block">Phone Number</span>
+                  <span className="text-sm font-semibold text-white">{user?.phoneNumber || 'Not provided'}</span>
                 </div>
               </div>
 
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="text-slate-400 font-medium">Email Address</label>
+              <div className="p-3.5 rounded-xl bg-slate-900/90 border border-white/10 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] text-slate-400 font-mono">Email Address</span>
                   {user?.emailVerified ? (
                     <span className="text-[11px] font-bold text-emerald-400 flex items-center gap-1 bg-emerald-500/10 px-2.5 py-0.5 rounded-full border border-emerald-500/20">
                       <CheckCircle2 className="w-3.5 h-3.5" />
@@ -491,20 +495,14 @@ export const CustomerProfilePage: React.FC = () => {
                     </span>
                   )}
                 </div>
-
-                <div className="flex gap-2">
-                  <input
-                    type="email"
-                    value={user?.email}
-                    disabled
-                    className="flex-1 bg-slate-950 border border-white/10 rounded-xl px-3.5 py-2.5 text-slate-400 cursor-not-allowed"
-                  />
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-semibold text-white font-mono">{user?.email}</span>
                   {!user?.emailVerified && (
                     <button
                       type="button"
                       onClick={handleSendOtp}
                       disabled={isSendingOtp}
-                      className="px-4 py-2.5 rounded-xl bg-purple-600/30 hover:bg-purple-600/40 text-purple-200 border border-purple-500/40 text-xs font-semibold flex items-center gap-1.5 transition-all shrink-0 shadow-glow-cyan"
+                      className="px-3.5 py-1.5 rounded-xl bg-purple-600/30 hover:bg-purple-600/40 text-purple-200 border border-purple-500/40 text-xs font-semibold flex items-center gap-1.5 transition-all shrink-0 shadow-glow-cyan"
                     >
                       <Mail className="w-3.5 h-3.5 text-purple-400" />
                       <span>{isSendingOtp ? 'Sending OTP...' : 'Send Verification OTP'}</span>
@@ -551,8 +549,45 @@ export const CustomerProfilePage: React.FC = () => {
                   </div>
                 </div>
               )}
+            </div>
+          ) : (
+            <form onSubmit={handleUpdateProfile} className="space-y-4 text-xs animate-fade-in">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-slate-400 font-medium mb-1">Full Name</label>
+                  <input
+                    type="text"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    className="w-full bg-slate-900 border border-white/10 rounded-xl px-3.5 py-2.5 text-white focus:outline-none focus:border-brand-500"
+                    placeholder="Enter full name"
+                  />
+                </div>
 
-              <div className="pt-2 flex justify-end">
+                <div>
+                  <label className="block text-slate-400 font-medium mb-1">Phone Number</label>
+                  <input
+                    type="text"
+                    value={phoneNumber}
+                    onChange={(e) => setPhoneNumber(e.target.value)}
+                    className="w-full bg-slate-900 border border-white/10 rounded-xl px-3.5 py-2.5 text-white focus:outline-none focus:border-brand-500"
+                    placeholder="+91 98765 43210"
+                  />
+                </div>
+              </div>
+
+              <div className="pt-2 flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setName(user?.name || '');
+                    setPhoneNumber(user?.phoneNumber || '');
+                    setIsEditingProfile(false);
+                  }}
+                  className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-semibold transition-all border border-white/10"
+                >
+                  Cancel
+                </button>
                 <button
                   type="submit"
                   disabled={isUpdatingProfile}
@@ -562,7 +597,8 @@ export const CustomerProfilePage: React.FC = () => {
                 </button>
               </div>
             </form>
-          </div>
+          )}
+        </div>
       )}
 
       {/* TAB 2: PREPAID WALLET */}
