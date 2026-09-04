@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { 
   BarChart3, 
   Shield, 
@@ -19,7 +20,9 @@ import {
   Send,
   Loader2,
   TrendingDown,
-  CreditCard
+  CreditCard,
+  Sparkles,
+  PackagePlus
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
@@ -271,6 +274,53 @@ export const MerchantDashboardPage: React.FC = () => {
         </div>
       )}
 
+      {/* Welcome & First-Time Onboarding Hero Card */}
+      <div className="glass-panel rounded-3xl p-6 border border-purple-500/30 bg-gradient-to-r from-purple-950/50 via-slate-900 to-indigo-950/40 shadow-glow-indigo space-y-4">
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div className="space-y-1">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-brand-500/20 text-brand-300 border border-brand-500/40 text-xs font-mono font-bold">
+              <Sparkles className="w-3.5 h-3.5 text-brand-400 animate-pulse" />
+              <span>Welcome to PayPilot AI Merchant Studio 🎉</span>
+            </div>
+            <h2 className="text-xl font-extrabold text-white">
+              Welcome, {user?.merchant?.name || user?.name || 'Merchant'}! Let's list your catalog products
+            </h2>
+            <p className="text-xs text-slate-300 max-w-2xl">
+              Your AI Agentic Storefront is live! Once you list your items in the Product Catalog, PayPilot AI automatically presents recommendations to buyers, processes orders, and tracks real-time sales velocity.
+            </p>
+          </div>
+
+          <Link
+            to="/merchant/products"
+            className="px-5 py-3 rounded-2xl bg-gradient-to-r from-brand-500 to-indigo-600 hover:from-brand-400 hover:to-indigo-500 text-white font-extrabold text-xs shadow-glow-cyan flex items-center gap-2 transition-all shrink-0 cursor-pointer"
+          >
+            <PackagePlus className="w-4 h-4 text-white" />
+            <span>➕ Add Your Product Catalog Now</span>
+          </Link>
+        </div>
+
+        {/* 3 Step Merchant Quick Onboarding Guide */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 border-t border-white/10 text-xs">
+          <div className="p-3.5 rounded-xl bg-slate-900/80 border border-white/10 space-y-1">
+            <span className="text-[10px] font-mono text-purple-300 uppercase font-bold block">Step 1 • Catalog CRUD</span>
+            <span className="font-bold text-white block">📦 Add Catalog Products</span>
+            <span className="text-[11px] text-slate-400 block">List your hardware items with price, specs & stock.</span>
+          </div>
+
+          <div className="p-3.5 rounded-xl bg-slate-900/80 border border-white/10 space-y-1">
+            <span className="text-[10px] font-mono text-cyan-300 uppercase font-bold block">Step 2 • Rules Policy</span>
+            <span className="font-bold text-white block">⚙️ Set Policy Ceiling</span>
+            <span className="text-[11px] text-slate-400 block">Define max order value limits & bundle discounts.</span>
+          </div>
+
+          <div className="p-3.5 rounded-xl bg-slate-900/80 border border-white/10 space-y-1">
+            <span className="text-[10px] font-mono text-emerald-300 uppercase font-bold block">Step 3 • AI Commerce</span>
+            <span className="font-bold text-white block">🤖 Enable AI Recommendations</span>
+            <span className="text-[11px] text-slate-400 block">PayPilot AI recommends your products via voice & chat.</span>
+          </div>
+        </div>
+      </div>
+
       {/* Header Banner */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-white/10">
         <div>
@@ -472,15 +522,18 @@ export const MerchantDashboardPage: React.FC = () => {
                   ))}
                 </div>
               ) : (
-                <div className="p-3 rounded-xl bg-slate-900/80 border border-white/5 flex items-center justify-between gap-3">
-                  <div>
-                    <h4 className="text-xs font-bold text-white">Pro Developer Laptop 15</h4>
-                    <span className="text-[10px] font-mono text-slate-400">SKU: LAP-PRO-15 • Stock: 23 units</span>
-                  </div>
-                  <div className="text-right">
-                    <span className="text-xs font-bold text-emerald-400 font-mono block">₹1,29,980</span>
-                    <span className="text-[10px] text-slate-300 font-mono">2 units sold</span>
-                  </div>
+                <div className="p-6 rounded-xl bg-slate-900/60 border border-white/5 text-center space-y-2">
+                  <PackagePlus className="w-6 h-6 text-emerald-400 mx-auto" />
+                  <h4 className="text-xs font-bold text-white">No top selling products yet</h4>
+                  <p className="text-[11px] text-slate-400">
+                    As customers buy from your store, high demand products will automatically appear here.
+                  </p>
+                  <Link
+                    to="/merchant/products"
+                    className="inline-block px-3 py-1.5 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/30 text-[11px] font-bold transition-all"
+                  >
+                    + Add Product Catalog
+                  </Link>
                 </div>
               )}
             </div>
@@ -517,15 +570,18 @@ export const MerchantDashboardPage: React.FC = () => {
                   ))}
                 </div>
               ) : (
-                <div className="p-3 rounded-xl bg-slate-900/80 border border-white/5 flex items-center justify-between gap-3">
-                  <div>
-                    <h4 className="text-xs font-bold text-white">Blue Light Blocking Programmer Glasses</h4>
-                    <span className="text-[10px] font-mono text-slate-400">SKU: GEAR-GLASSES-01 • Stock: 45 units</span>
-                  </div>
-                  <div className="text-right">
-                    <span className="text-xs font-semibold text-slate-300 font-mono block">₹1,299</span>
-                    <span className="text-[10px] text-amber-400 font-mono">0 units sold</span>
-                  </div>
+                <div className="p-6 rounded-xl bg-slate-900/60 border border-white/5 text-center space-y-2">
+                  <PackagePlus className="w-6 h-6 text-amber-400 mx-auto" />
+                  <h4 className="text-xs font-bold text-white">No slow-moving inventory detected</h4>
+                  <p className="text-[11px] text-slate-400">
+                    PayPilot AI tracks inventory velocity once products are listed in your store catalog.
+                  </p>
+                  <Link
+                    to="/merchant/products"
+                    className="inline-block px-3 py-1.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 text-[11px] font-bold transition-all"
+                  >
+                    + Add Product Catalog
+                  </Link>
                 </div>
               )}
             </div>

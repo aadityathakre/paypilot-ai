@@ -14,7 +14,6 @@ import {
   CheckCircle2,
   Globe,
   AlertCircle,
-  LogOut,
   Edit3,
   Activity,
   FileText,
@@ -50,7 +49,7 @@ interface Order {
 }
 
 export const CustomerProfilePage: React.FC = () => {
-  const { user, token, refreshUser, logout } = useAuth();
+  const { user, token, refreshUser } = useAuth();
   const [activeTab, setActiveTab] = useState<'profile' | 'wallet' | 'orders' | 'language' | 'audit'>('profile');
 
   // Form states
@@ -372,8 +371,8 @@ export const CustomerProfilePage: React.FC = () => {
           </div>
         </div>
 
-        {/* Header Right Actions: Wallet & Logout */}
-        <div className="flex flex-wrap items-center gap-3 justify-center md:justify-end">
+        {/* Header Right Actions: Wallet */}
+        <div className="flex items-center gap-3 justify-center md:justify-end">
           <div className="glass-card p-4 rounded-2xl border border-white/10 flex items-center gap-4 text-right">
             <div className="w-12 h-12 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
               <Wallet className="w-6 h-6" />
@@ -385,19 +384,6 @@ export const CustomerProfilePage: React.FC = () => {
               </span>
             </div>
           </div>
-
-          <button
-            type="button"
-            onClick={() => {
-              logout();
-              window.location.href = '/login';
-            }}
-            className="px-4 py-3 rounded-2xl bg-rose-500/15 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 text-xs font-bold flex items-center gap-2 transition-all shadow-glow-cyan"
-            title="Sign out of your PayPilot account"
-          >
-            <LogOut className="w-4 h-4 text-rose-400" />
-            <span>Log Out</span>
-          </button>
         </div>
       </div>
 
