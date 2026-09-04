@@ -147,80 +147,82 @@ export function useSpeechRecognition(options?: UseSpeechRecognitionOptions): Use
     }
   }, []);
 
-  useEffect(() => {
+  const createRecognition = useCallback(() => {
     const SpeechRecognition =
       (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
 
-    if (SpeechRecognition) {
-      try {
-        const recognition = new SpeechRecognition();
-        recognition.continuous = true;
-        recognition.interimResults = true;
-        recognition.lang = getLangCode();
+    if (!SpeechRecognition) return null;
 
-        recognition.onstart = () => {
-          setIsListening(true);
-        };
+    try {
+      const recognition = new SpeechRecognition();
+      recognition.continuous = true;
+      recognition.interimResults = true;
+      recognition.lang = getLangCode();
 
-        recognition.onresult = (event: any) => {
-          let accumulated = '';
-          for (let i = 0; i < event.results.length; i++) {
-            accumulated += event.results[i][0].transcript + ' ';
-          }
+      recognition.onstart = () => {
+        setIsListening(true);
+      };
 
-          const clean = accumulated.trim();
-          if (clean) {
-            setTranscript(clean);
-            latestTranscriptRef.current = clean;
+      recognition.onresult = (event: any) => {
+        let accumulated = '';
+        for (let i = 0; i < event.results.length; i++) {
+          accumulated += event.results[i][0].transcript + ' ';
+        }
 
-            // Reset 1.2-second silence timer on new spoken words (auto stops and submits when user stops talking)
-            if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
-            silenceTimerRef.current = setTimeout(() => {
-              finishSpeechAndSubmit();
-            }, 1200);
-          }
-        };
+        const clean = accumulated.trim();
+        if (clean) {
+          setTranscript(clean);
+          latestTranscriptRef.current = clean;
 
-        recognition.onerror = (event: any) => {
-          console.warn('Speech recognition notice:', event.error);
-          if (event.error === 'no-speech' || event.error === 'network' || event.error === 'aborted') {
-            if (!shouldListenRef.current) {
-              setIsListening(false);
-            }
-          }
-        };
+          if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
+          silenceTimerRef.current = setTimeout(() => {
+            finishSpeechAndSubmit();
+          }, 1200);
+        }
+      };
 
-        recognition.onend = () => {
-          if (silenceTimerRef.current) {
-            clearTimeout(silenceTimerRef.current);
-            silenceTimerRef.current = null;
-          }
-
-          const pendingText = latestTranscriptRef.current.trim();
-          if (pendingText) {
-            // Speech was spoken and recognition ended -> submit immediately
-            latestTranscriptRef.current = '';
-            shouldListenRef.current = false;
-            setIsListening(false);
-            if (optionsRef.current?.onSpeechComplete) {
-              optionsRef.current.onSpeechComplete(pendingText);
-            }
-          } else if (shouldListenRef.current) {
-            // Auto restart recognition if user hasn't spoken yet and didn't explicitly stop mic
-            try {
-              recognition.start();
-            } catch {
-              setIsListening(false);
-            }
-          } else {
+      recognition.onerror = (event: any) => {
+        console.warn('Speech recognition notice:', event.error);
+        if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+          shouldListenRef.current = false;
+          setIsListening(false);
+          alert('Microphone access is blocked. Please allow microphone permissions in your browser address bar to use voice search.');
+        } else if (event.error === 'no-speech' || event.error === 'network' || event.error === 'aborted') {
+          if (!shouldListenRef.current) {
             setIsListening(false);
           }
-        };
+        }
+      };
 
-        recognitionRef.current = recognition;
-      } catch (err) {
-        console.warn('Failed to initialize speech recognition:', err);
-      }
+      recognition.onend = () => {
+        if (silenceTimerRef.current) {
+          clearTimeout(silenceTimerRef.current);
+          silenceTimerRef.current = null;
+        }
+
+        const pendingText = latestTranscriptRef.current.trim();
+        if (pendingText) {
+          latestTranscriptRef.current = '';
+          shouldListenRef.current = false;
+          setIsListening(false);
+          if (optionsRef.current?.onSpeechComplete) {
+            optionsRef.current.onSpeechComplete(pendingText);
+          }
+        } else if (shouldListenRef.current) {
+          try {
+            recognition.start();
+          } catch {
+            setIsListening(false);
+          }
+        } else {
+          setIsListening(false);
+        }
+      };
+
+      return recognition;
+    } catch (err) {
+      console.warn('Failed to initialize speech recognition:', err);
+      return null;
     }
   }, [finishSpeechAndSubmit]);
 
@@ -239,25 +241,31 @@ export function useSpeechRecognition(options?: UseSpeechRecognitionOptions): Use
 
     if (recognitionRef.current) {
       try {
-        recognitionRef.current.lang = getLangCode();
-        recognitionRef.current.start();
+        recognitionRef.current.abort();
+      } catch {
+        // silent
+      }
+    }
+
+    const instance = createRecognition();
+    if (instance) {
+      recognitionRef.current = instance;
+      try {
+        instance.start();
         setIsListening(true);
       } catch (err) {
-        console.warn('Speech recognition start notice:', err);
-        setIsListening(true);
+        console.warn('Error starting speech recognition:', err);
+        setIsListening(false);
       }
     } else {
-      setIsListening(true);
+      setIsListening(false);
     }
-  }, []);
+  }, [createRecognition]);
 
   const startListening = useCallback((playGreeting = false) => {
+    startListeningDirect();
     if (playGreeting && !optionsRef.current?.silentMode) {
-      speakGreeting(() => {
-        startListeningDirect();
-      });
-    } else {
-      startListeningDirect();
+      speakGreeting();
     }
   }, [speakGreeting, startListeningDirect]);
 
