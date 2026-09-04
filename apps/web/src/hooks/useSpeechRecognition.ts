@@ -24,6 +24,12 @@ export function useSpeechRecognition(options?: UseSpeechRecognitionOptions): Use
   const latestTranscriptRef = useRef('');
   const shouldListenRef = useRef(false);
 
+  // Keep options ref updated so callbacks never re-trigger SpeechRecognition creation
+  const optionsRef = useRef(options);
+  useEffect(() => {
+    optionsRef.current = options;
+  }, [options]);
+
   const getLangCode = () => {
     const lang = localStorage.getItem('paypilot_language') || 'en';
     if (lang === 'hi') return 'hi-IN';
@@ -42,13 +48,13 @@ export function useSpeechRecognition(options?: UseSpeechRecognitionOptions): Use
     return 'Welcome to PayPilot! What product would you like to search today? Please speak...';
   };
 
-  // Indian Female Voice Synthesis Helper
+  // Human-like Fast Natural Female Voice Synthesis Helper
   const speakText = useCallback((textToSpeak: string, onEnd?: () => void) => {
     if (!('speechSynthesis' in window)) {
       if (onEnd) onEnd();
       return;
     }
-    
+
     try {
       window.speechSynthesis.cancel(); // cancel previous speech audio
     } catch {
@@ -57,18 +63,47 @@ export function useSpeechRecognition(options?: UseSpeechRecognitionOptions): Use
 
     const utterance = new SpeechSynthesisUtterance(textToSpeak);
     utterance.lang = getLangCode();
-    utterance.rate = 0.95; // calm and natural pace
-    utterance.pitch = 1.15; // friendly female tone
+    utterance.rate = 1.55; // Brisk, fast, energetic human conversational pace
+    utterance.pitch = 1.05; // Warm, natural human female vocal pitch (not robotic synth)
 
-    const voices = window.speechSynthesis.getVoices();
-    const femaleIndianVoice = voices.find(
-      (v) =>
-        (v.lang.includes('IN') || v.lang.includes('en-IN') || v.lang.includes('hi-IN')) &&
-        (v.name.toLowerCase().includes('female') || v.name.toLowerCase().includes('zira') || v.name.toLowerCase().includes('heera') || v.name.toLowerCase().includes('google'))
-    ) || voices.find((v) => v.lang.includes('IN')) || voices.find((v) => v.name.toLowerCase().includes('female'));
+    const findNaturalFemaleVoice = () => {
+      const voices = window.speechSynthesis.getVoices();
+      if (!voices || voices.length === 0) return null;
 
-    if (femaleIndianVoice) {
-      utterance.voice = femaleIndianVoice;
+      // 1. Natural / Neural Indian Female Voice (e.g. Neerja Natural, Swara, Heera, Google en-IN)
+      const naturalIndianFemale = voices.find(
+        (v) =>
+          (v.lang.includes('IN') || v.lang.includes('en-IN') || v.lang.includes('hi-IN')) &&
+          (v.name.toLowerCase().includes('natural') ||
+            v.name.toLowerCase().includes('neural') ||
+            v.name.toLowerCase().includes('neerja') ||
+            v.name.toLowerCase().includes('swara') ||
+            v.name.toLowerCase().includes('heera') ||
+            v.name.toLowerCase().includes('zira') ||
+            v.name.toLowerCase().includes('female') ||
+            v.name.toLowerCase().includes('google'))
+      );
+      if (naturalIndianFemale) return naturalIndianFemale;
+
+      // 2. Any Natural / Neural Female Voice
+      const anyNaturalFemale = voices.find(
+        (v) =>
+          (v.name.toLowerCase().includes('natural') || v.name.toLowerCase().includes('neural')) &&
+          (v.name.toLowerCase().includes('female') || v.name.toLowerCase().includes('zira') || v.name.toLowerCase().includes('aria'))
+      );
+      if (anyNaturalFemale) return anyNaturalFemale;
+
+      // 3. Indian Voice fallback
+      const indianVoice = voices.find((v) => v.lang.includes('IN') || v.lang.includes('en-IN'));
+      if (indianVoice) return indianVoice;
+
+      // 4. Female Voice fallback
+      return voices.find((v) => v.name.toLowerCase().includes('female') || v.name.toLowerCase().includes('zira'));
+    };
+
+    const bestVoice = findNaturalFemaleVoice();
+    if (bestVoice) {
+      utterance.voice = bestVoice;
     }
 
     let ended = false;
@@ -89,9 +124,15 @@ export function useSpeechRecognition(options?: UseSpeechRecognitionOptions): Use
     speakText(getGreetingText(), onGreetingEnd);
   }, [speakText]);
 
-  const handleSpeechSilenceDone = useCallback(() => {
+  const finishSpeechAndSubmit = useCallback(() => {
+    if (silenceTimerRef.current) {
+      clearTimeout(silenceTimerRef.current);
+      silenceTimerRef.current = null;
+    }
     shouldListenRef.current = false;
     const textToSearch = latestTranscriptRef.current.trim();
+    latestTranscriptRef.current = '';
+
     if (recognitionRef.current) {
       try {
         recognitionRef.current.stop();
@@ -100,17 +141,11 @@ export function useSpeechRecognition(options?: UseSpeechRecognitionOptions): Use
       }
     }
     setIsListening(false);
-    if ('speechSynthesis' in window) {
-      try {
-        window.speechSynthesis.cancel();
-      } catch {
-        // silent
-      }
+
+    if (textToSearch && optionsRef.current?.onSpeechComplete) {
+      optionsRef.current.onSpeechComplete(textToSearch);
     }
-    if (textToSearch && options?.onSpeechComplete) {
-      options.onSpeechComplete(textToSearch);
-    }
-  }, [options]);
+  }, []);
 
   useEffect(() => {
     const SpeechRecognition =
@@ -138,11 +173,11 @@ export function useSpeechRecognition(options?: UseSpeechRecognitionOptions): Use
             setTranscript(clean);
             latestTranscriptRef.current = clean;
 
-            // Reset 3-second silence timer on new spoken words
+            // Reset 1.2-second silence timer on new spoken words (auto stops and submits when user stops talking)
             if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
             silenceTimerRef.current = setTimeout(() => {
-              handleSpeechSilenceDone();
-            }, 3000);
+              finishSpeechAndSubmit();
+            }, 1200);
           }
         };
 
@@ -156,8 +191,22 @@ export function useSpeechRecognition(options?: UseSpeechRecognitionOptions): Use
         };
 
         recognition.onend = () => {
-          if (shouldListenRef.current) {
-            // Auto restart recognition if user hasn't explicitly stopped mic
+          if (silenceTimerRef.current) {
+            clearTimeout(silenceTimerRef.current);
+            silenceTimerRef.current = null;
+          }
+
+          const pendingText = latestTranscriptRef.current.trim();
+          if (pendingText) {
+            // Speech was spoken and recognition ended -> submit immediately
+            latestTranscriptRef.current = '';
+            shouldListenRef.current = false;
+            setIsListening(false);
+            if (optionsRef.current?.onSpeechComplete) {
+              optionsRef.current.onSpeechComplete(pendingText);
+            }
+          } else if (shouldListenRef.current) {
+            // Auto restart recognition if user hasn't spoken yet and didn't explicitly stop mic
             try {
               recognition.start();
             } catch {
@@ -165,11 +214,6 @@ export function useSpeechRecognition(options?: UseSpeechRecognitionOptions): Use
             }
           } else {
             setIsListening(false);
-            if (latestTranscriptRef.current.trim() && options?.onSpeechComplete) {
-              const text = latestTranscriptRef.current.trim();
-              latestTranscriptRef.current = '';
-              options.onSpeechComplete(text);
-            }
           }
         };
 
@@ -178,7 +222,7 @@ export function useSpeechRecognition(options?: UseSpeechRecognitionOptions): Use
         console.warn('Failed to initialize speech recognition:', err);
       }
     }
-  }, [handleSpeechSilenceDone, options]);
+  }, [finishSpeechAndSubmit]);
 
   const startListeningDirect = useCallback(() => {
     setTranscript('');
@@ -208,14 +252,14 @@ export function useSpeechRecognition(options?: UseSpeechRecognitionOptions): Use
   }, []);
 
   const startListening = useCallback((playGreeting = false) => {
-    if (playGreeting && !options?.silentMode) {
+    if (playGreeting && !optionsRef.current?.silentMode) {
       speakGreeting(() => {
         startListeningDirect();
       });
     } else {
       startListeningDirect();
     }
-  }, [options?.silentMode, speakGreeting, startListeningDirect]);
+  }, [speakGreeting, startListeningDirect]);
 
   const stopListening = useCallback(() => {
     shouldListenRef.current = false;

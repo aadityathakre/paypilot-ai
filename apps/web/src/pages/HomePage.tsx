@@ -107,11 +107,16 @@ export const HomePage: React.FC = () => {
   const [isChatbotOpen, setIsChatbotOpen] = useState<boolean>(searchParams.get('chat') === 'true');
   const [isVoiceModalOpen, setIsVoiceModalOpen] = useState<boolean>(false);
 
+  const shouldSpeakResponseRef = useRef(false);
+
   // Voice Recognition Hook for Text Input Mic (Silent Mode)
   const { isListening, transcript, startListening, stopListening, isSupported } = useSpeechRecognition({
     silentMode: true,
     onSpeechComplete: (finalSpeech) => {
       setInputMessage(finalSpeech);
+      setIsChatbotOpen(true);
+      setSearchParams({ search: finalSpeech });
+      shouldSpeakResponseRef.current = true;
       handleSendMessage(finalSpeech);
     },
   });
@@ -121,6 +126,8 @@ export const HomePage: React.FC = () => {
     silentMode: false,
     onSpeechComplete: (finalSpeech) => {
       setIsChatbotOpen(true);
+      setSearchParams({ search: finalSpeech });
+      shouldSpeakResponseRef.current = true;
       handleSendMessage(finalSpeech);
       setIsVoiceModalOpen(false);
     },
@@ -284,6 +291,21 @@ export const HomePage: React.FC = () => {
     const text = textToSend || inputMessage;
     if (!text.trim() || isProcessing) return;
 
+    const speakAssistantResponse = (textToSpeak: string) => {
+      if (shouldSpeakResponseRef.current) {
+        shouldSpeakResponseRef.current = false;
+        const cleanText = textToSpeak
+          .replace(/\*\*/g, '')
+          .replace(/\*/g, '')
+          .replace(/#/g, '')
+          .replace(/`[^\`]+`/g, '')
+          .trim();
+        if (cleanText) {
+          voiceAgent.speakText(cleanText);
+        }
+      }
+    };
+
     const userMsg: ChatMessage = {
       id: `msg_${Date.now()}`,
       role: 'user',
@@ -338,6 +360,7 @@ export const HomePage: React.FC = () => {
             timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
           };
           setMessages((prev) => [...prev, assistantMsg]);
+          speakAssistantResponse(assistantMsg.text);
         }
       } else {
         const res = await fetch(`/api/agent/sessions/${sessionId}/messages`, {
@@ -361,6 +384,7 @@ export const HomePage: React.FC = () => {
             timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
           };
           setMessages((prev) => [...prev, assistantMsg]);
+          speakAssistantResponse(assistantMsg.text);
         } else {
           throw new Error(json.error?.message || 'Agent failed to respond');
         }
