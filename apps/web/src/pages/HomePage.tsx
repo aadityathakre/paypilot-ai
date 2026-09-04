@@ -120,8 +120,8 @@ export const HomePage: React.FC = () => {
   const voiceAgent = useSpeechRecognition({
     silentMode: false,
     onSpeechComplete: (finalSpeech) => {
-      setSearchParams({ search: finalSpeech });
-      voiceAgent.speakText(`Searching catalog for ${finalSpeech}. Here are your recommended products!`);
+      setIsChatbotOpen(true);
+      handleSendMessage(finalSpeech);
       setIsVoiceModalOpen(false);
     },
   });
@@ -254,11 +254,21 @@ export const HomePage: React.FC = () => {
 
   // Listen to open_paypilot_chat event or chat=true URL parameter
   useEffect(() => {
-    const handleOpenChat = () => setIsChatbotOpen(true);
+    const handleOpenChat = (e: any) => {
+      setIsChatbotOpen(true);
+      const promptText = e?.detail?.prompt || searchParams.get('prompt');
+      if (promptText) {
+        handleSendMessage(promptText);
+      }
+    };
     window.addEventListener('open_paypilot_chat', handleOpenChat);
 
     if (searchParams.get('chat') === 'true') {
       setIsChatbotOpen(true);
+      const promptText = searchParams.get('prompt');
+      if (promptText) {
+        handleSendMessage(promptText);
+      }
     }
     return () => window.removeEventListener('open_paypilot_chat', handleOpenChat);
   }, [searchParams]);

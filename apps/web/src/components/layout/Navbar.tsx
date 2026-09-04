@@ -39,7 +39,8 @@ export const Navbar: React.FC = () => {
     onSpeechComplete: (finalSpeech) => {
       setSearchQuery(finalSpeech);
       setShowLiveDropdown(false);
-      navigate(`/?search=${encodeURIComponent(finalSpeech)}`);
+      navigate(`/?chat=true&prompt=${encodeURIComponent(finalSpeech)}`);
+      window.dispatchEvent(new CustomEvent('open_paypilot_chat', { detail: { prompt: finalSpeech } }));
     },
   });
 
@@ -93,7 +94,9 @@ export const Navbar: React.FC = () => {
 
   const handleAskAIAboutProduct = (productName: string) => {
     setShowLiveDropdown(false);
-    navigate(`/?search=${encodeURIComponent(productName)}`);
+    const promptText = `Tell me about ${productName} and recommend options`;
+    navigate(`/?chat=true&prompt=${encodeURIComponent(promptText)}`);
+    window.dispatchEvent(new CustomEvent('open_paypilot_chat', { detail: { prompt: promptText } }));
   };
 
   const [placeholderIndex, setPlaceholderIndex] = useState(0);

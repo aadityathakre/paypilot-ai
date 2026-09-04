@@ -22,6 +22,7 @@ export function useSpeechRecognition(options?: UseSpeechRecognitionOptions): Use
   const recognitionRef = useRef<any>(null);
   const silenceTimerRef = useRef<any>(null);
   const latestTranscriptRef = useRef('');
+  const shouldListenRef = useRef(false);
 
   const getLangCode = () => {
     const lang = localStorage.getItem('paypilot_language') || 'en';
@@ -43,13 +44,13 @@ export function useSpeechRecognition(options?: UseSpeechRecognitionOptions): Use
 
   // Indian Female Voice Synthesis Helper
   const speakText = useCallback((textToSpeak: string, onEnd?: () => void) => {
-    if (!('speechSynthesis' in window) || options?.silentMode) {
+    if (!('speechSynthesis' in window)) {
       if (onEnd) onEnd();
       return;
     }
     
     try {
-      window.speechSynthesis.cancel(); // cancel previous speech
+      window.speechSynthesis.cancel(); // cancel previous speech audio
     } catch {
       // silent
     }
@@ -70,23 +71,26 @@ export function useSpeechRecognition(options?: UseSpeechRecognitionOptions): Use
       utterance.voice = femaleIndianVoice;
     }
 
-    if (onEnd) {
-      utterance.onend = () => onEnd();
-      utterance.onerror = () => onEnd();
-    }
+    let ended = false;
+    const handleDone = () => {
+      if (!ended) {
+        ended = true;
+        if (onEnd) onEnd();
+      }
+    };
+
+    utterance.onend = handleDone;
+    utterance.onerror = handleDone;
 
     window.speechSynthesis.speak(utterance);
-  }, [options?.silentMode]);
+  }, []);
 
   const speakGreeting = useCallback((onGreetingEnd?: () => void) => {
-    if (!options?.silentMode) {
-      speakText(getGreetingText(), onGreetingEnd);
-    } else if (onGreetingEnd) {
-      onGreetingEnd();
-    }
-  }, [options?.silentMode, speakText]);
+    speakText(getGreetingText(), onGreetingEnd);
+  }, [speakText]);
 
   const handleSpeechSilenceDone = useCallback(() => {
+    shouldListenRef.current = false;
     const textToSearch = latestTranscriptRef.current.trim();
     if (recognitionRef.current) {
       try {
@@ -124,34 +128,48 @@ export function useSpeechRecognition(options?: UseSpeechRecognitionOptions): Use
         };
 
         recognition.onresult = (event: any) => {
-          let currentTranscript = '';
-          for (let i = event.resultIndex; i < event.results.length; i++) {
-            currentTranscript += event.results[i][0].transcript;
+          let accumulated = '';
+          for (let i = 0; i < event.results.length; i++) {
+            accumulated += event.results[i][0].transcript + ' ';
           }
 
-          if (currentTranscript.trim()) {
-            setTranscript(currentTranscript);
-            latestTranscriptRef.current = currentTranscript;
+          const clean = accumulated.trim();
+          if (clean) {
+            setTranscript(clean);
+            latestTranscriptRef.current = clean;
 
-            // Reset silence timer on every new speech token
+            // Reset 3-second silence timer on new spoken words
             if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
             silenceTimerRef.current = setTimeout(() => {
               handleSpeechSilenceDone();
-            }, 1500); // 1.5 seconds of silence auto-stops and triggers search!
+            }, 3000);
           }
         };
 
         recognition.onerror = (event: any) => {
           console.warn('Speech recognition notice:', event.error);
-          if (event.error === 'no-speech' || event.error === 'network') {
-            setIsListening(false);
+          if (event.error === 'no-speech' || event.error === 'network' || event.error === 'aborted') {
+            if (!shouldListenRef.current) {
+              setIsListening(false);
+            }
           }
         };
 
         recognition.onend = () => {
-          setIsListening(false);
-          if (latestTranscriptRef.current.trim() && options?.onSpeechComplete) {
-            options.onSpeechComplete(latestTranscriptRef.current.trim());
+          if (shouldListenRef.current) {
+            // Auto restart recognition if user hasn't explicitly stopped mic
+            try {
+              recognition.start();
+            } catch {
+              setIsListening(false);
+            }
+          } else {
+            setIsListening(false);
+            if (latestTranscriptRef.current.trim() && options?.onSpeechComplete) {
+              const text = latestTranscriptRef.current.trim();
+              latestTranscriptRef.current = '';
+              options.onSpeechComplete(text);
+            }
           }
         };
 
@@ -165,6 +183,15 @@ export function useSpeechRecognition(options?: UseSpeechRecognitionOptions): Use
   const startListeningDirect = useCallback(() => {
     setTranscript('');
     latestTranscriptRef.current = '';
+    shouldListenRef.current = true;
+
+    if ('speechSynthesis' in window) {
+      try {
+        window.speechSynthesis.cancel();
+      } catch {
+        // silent
+      }
+    }
 
     if (recognitionRef.current) {
       try {
@@ -191,6 +218,7 @@ export function useSpeechRecognition(options?: UseSpeechRecognitionOptions): Use
   }, [options?.silentMode, speakGreeting, startListeningDirect]);
 
   const stopListening = useCallback(() => {
+    shouldListenRef.current = false;
     setIsListening(false);
     if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
     if (recognitionRef.current) {
