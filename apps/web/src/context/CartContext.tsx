@@ -72,7 +72,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [token]);
 
   const addItem = async (productId: string, quantity = 1): Promise<boolean> => {
-    let activeToken = token;
+    let activeToken = token || localStorage.getItem('paypilot_token');
     if (!activeToken) {
       try {
         const loggedIn = await quickLoginAs('CUSTOMER');
@@ -87,7 +87,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!activeToken) return false;
 
     try {
-      const res = await fetch('/api/carts/items', {
+      let res = await fetch('/api/carts/items', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -95,6 +95,22 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         },
         body: JSON.stringify({ productId, quantity }),
       });
+
+      if (res.status === 401) {
+        const loggedIn = await quickLoginAs('CUSTOMER');
+        if (loggedIn) {
+          activeToken = localStorage.getItem('paypilot_token');
+          res = await fetch('/api/carts/items', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${activeToken}`,
+            },
+            body: JSON.stringify({ productId, quantity }),
+          });
+        }
+      }
+
       const data = await res.json();
       if (data.success && data.data?.cart) {
         setCart(data.data.cart);
