@@ -5,7 +5,11 @@ import { AppError } from '../../middleware/errorHandler.js';
 export class ProductsController {
   static async listProducts(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const result = await ProductsService.listProducts(req.query as any);
+      const queryParams: any = { ...req.query };
+      if ((queryParams.mine === 'true' || queryParams.mine === true) && req.user?.merchantId) {
+        queryParams.merchantId = req.user.merchantId;
+      }
+      const result = await ProductsService.listProducts(queryParams);
       res.status(200).json({
         success: true,
         data: result,

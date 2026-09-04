@@ -50,12 +50,16 @@ export class ProductsService {
    * List products with multi-faceted search, filters, and pagination
    */
   static async listProducts(query: ListProductsQuery) {
-    const { category, minPrice, maxPrice, inStock, search, page, limit, sortBy } = query;
+    const { merchantId, category, minPrice, maxPrice, inStock, search, page, limit, sortBy } = query;
     const skip = (page - 1) * limit;
 
     const where: Prisma.ProductWhereInput = {
       active: true,
     };
+
+    if (merchantId) {
+      where.merchantId = merchantId;
+    }
 
     if (category) {
       where.category = { equals: category.toLowerCase(), mode: 'insensitive' };

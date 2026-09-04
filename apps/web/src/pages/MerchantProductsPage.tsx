@@ -42,7 +42,9 @@ export const MerchantProductsPage: React.FC = () => {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch('/api/products?limit=50');
+      const res = await fetch('/api/products?mine=true&limit=50', {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
       const json = await res.json();
       if (res.ok && json.success) {
         setProducts(json.data.items);
@@ -174,6 +176,23 @@ export const MerchantProductsPage: React.FC = () => {
           <div className="p-12 text-center text-slate-400 text-xs">
             <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-brand-400" />
             Loading catalog items...
+          </div>
+        ) : products.length === 0 ? (
+          <div className="p-12 rounded-2xl bg-slate-900/80 border border-white/10 text-center space-y-4 shadow-xl">
+            <PackagePlus className="w-12 h-12 text-brand-400 mx-auto" />
+            <div className="space-y-1">
+              <h3 className="text-base font-bold text-white">Your Store Catalog is Empty</h3>
+              <p className="text-xs text-slate-400 max-w-md mx-auto">
+                Welcome to PayPilot AI! Click 'Add New Product' to list your first item. PayPilot AI will immediately begin recommending it to shoppers.
+              </p>
+            </div>
+            <button
+              onClick={handleOpenAddModal}
+              className="px-5 py-2.5 rounded-xl bg-brand-500 hover:bg-brand-400 text-slate-950 font-bold text-xs inline-flex items-center gap-2 shadow-glow-cyan transition-all cursor-pointer"
+            >
+              <PackagePlus className="w-4 h-4" />
+              <span>➕ Add Your First Product</span>
+            </button>
           </div>
         ) : (
           <div className="bg-slate-900/80 rounded-2xl border border-white/10 overflow-hidden shadow-xl">

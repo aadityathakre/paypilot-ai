@@ -1,6 +1,8 @@
 import { z } from 'zod';
 
 export const listProductsQuerySchema = z.object({
+  merchantId: z.string().optional(),
+  mine: z.enum(['true', 'false']).transform((v) => v === 'true').optional(),
   category: z.string().optional(),
   minPrice: z.coerce.number().min(0).optional(),
   maxPrice: z.coerce.number().min(0).optional(),

@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { 
-  Bot, 
-  Send, 
-  Sparkles, 
-  ShieldCheck, 
-  CheckCircle2, 
+import {
+  Bot,
+  Send,
+  Sparkles,
+  ShieldCheck,
+  CheckCircle2,
   ArrowRight,
   ShoppingCart,
   Check,
@@ -101,7 +101,7 @@ export const HomePage: React.FC = () => {
   const [loadingProductId, setLoadingProductId] = useState<string | null>(null);
   const [addedProductIds, setAddedProductIds] = useState<Set<string>>(new Set());
   const [cartSuccessMessage, setCartSuccessMessage] = useState<string | null>(null);
-  
+
   // UI Window Controls & Chatbot Drawer State
   const [isMaximized, setIsMaximized] = useState<boolean>(false);
   const [isChatbotOpen, setIsChatbotOpen] = useState<boolean>(searchParams.get('chat') === 'true');
@@ -445,7 +445,7 @@ export const HomePage: React.FC = () => {
             className="px-6 py-3 rounded-2xl bg-gradient-to-r from-brand-500 via-indigo-600 to-purple-600 hover:from-brand-400 hover:to-indigo-500 text-white text-xs sm:text-sm font-bold shadow-glow-cyan transition-all flex items-center gap-2.5 hover:scale-105 active:scale-95 border border-white/20 ring-2 ring-brand-400/30 cursor-pointer"
           >
             <Bot className="w-5 h-5 text-white animate-pulse" />
-            <span>🎙️ Talk with PayPilot AI Agent (Human-Like Voice)</span>
+            <span>🎙️ Talk with PayPilot AI Agent</span>
           </button>
         </div>
       </section>
@@ -468,11 +468,10 @@ export const HomePage: React.FC = () => {
             <button
               key={cat.id}
               onClick={() => setSelectedCategory(cat.id)}
-              className={`px-3.5 py-2 rounded-xl text-xs font-semibold shrink-0 transition-all ${
-                selectedCategory === cat.id
+              className={`px-3.5 py-2 rounded-xl text-xs font-semibold shrink-0 transition-all ${selectedCategory === cat.id
                   ? 'bg-brand-500 text-white shadow-glow-cyan scale-105'
                   : 'bg-slate-900/80 hover:bg-slate-800 text-slate-300 border border-white/10'
-              }`}
+                }`}
             >
               {cat.label}
             </button>
@@ -523,18 +522,18 @@ export const HomePage: React.FC = () => {
               const isLoadingThis = loadingProductId === p.id;
 
               return (
-                <div 
-                  key={p.id} 
+                <div
+                  key={p.id}
                   className="glass-card rounded-2xl border border-white/10 hover:border-brand-500/40 transition-all duration-300 hover:-translate-y-1 hover:shadow-glow-cyan flex flex-col justify-between overflow-hidden group"
                 >
                   <div className="p-4 space-y-3">
                     {/* Image & Category Tag */}
                     <div className="relative aspect-video rounded-xl overflow-hidden bg-slate-950/80 border border-white/5">
                       {p.imageUrl ? (
-                        <img 
-                          src={p.imageUrl} 
-                          alt={p.name} 
-                          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" 
+                        <img
+                          src={p.imageUrl}
+                          alt={p.name}
+                          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                         />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center text-slate-600">
@@ -598,11 +597,10 @@ export const HomePage: React.FC = () => {
                       <button
                         disabled={isLoadingThis}
                         onClick={() => handleAddToCart(p.id, p.name)}
-                        className={`px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all ${
-                          isAdded
+                        className={`px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all ${isAdded
                             ? 'bg-emerald-600/30 text-emerald-300 border border-emerald-500/40'
                             : 'bg-brand-500 hover:bg-brand-400 text-white shadow-glow-cyan disabled:opacity-60'
-                        }`}
+                          }`}
                       >
                         {isLoadingThis ? (
                           <Loader2 className="w-4 h-4 animate-spin text-white" />
@@ -712,12 +710,11 @@ export const HomePage: React.FC = () => {
 
       {/* Floating AI Chatbot Modal Drawer Overlay */}
       {isChatbotOpen && (
-        <div 
-          className={`fixed z-[100] rounded-3xl flex flex-col backdrop-blur-3xl border border-brand-500/50 shadow-2xl transition-all duration-300 animate-fade-in ${
-            isMaximized
+        <div
+          className={`fixed z-[100] rounded-3xl flex flex-col backdrop-blur-3xl border border-brand-500/50 shadow-2xl transition-all duration-300 animate-fade-in ${isMaximized
               ? 'inset-3 sm:inset-6 p-5 sm:p-6 bg-slate-950/95 overflow-hidden ring-1 ring-white/10'
               : 'bottom-6 right-4 sm:right-6 w-[92vw] sm:w-[500px] h-[640px] p-5 bg-slate-950/95 ring-2 ring-brand-500/30 shadow-glow-indigo'
-          }`}
+            }`}
         >
           {/* Chat Header */}
           <div className="flex items-center justify-between pb-3 border-b border-white/10 shrink-0">
@@ -773,10 +770,10 @@ export const HomePage: React.FC = () => {
 
           {/* Fullscreen 2-Column Split vs Normal Drawer Single Column */}
           <div className={isMaximized ? 'grid grid-cols-1 lg:grid-cols-12 gap-6 flex-1 min-h-0 pt-3' : 'flex flex-col flex-1 min-h-0'}>
-            
+
             {/* Left Main Section (Messages Stream & Input) */}
             <div className={isMaximized ? 'lg:col-span-7 flex flex-col h-full min-h-0 border-r border-white/10 pr-4' : 'flex flex-col flex-1 min-h-0'}>
-              
+
               {/* Messages Area */}
               <div className="flex-1 overflow-y-auto py-3 space-y-3 pr-1 scrollbar-thin">
                 {messages.map((msg) => (
@@ -785,9 +782,8 @@ export const HomePage: React.FC = () => {
                     className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}
                   >
                     <div
-                      className={`flex gap-2.5 ${isMaximized ? 'max-w-[85%]' : 'max-w-[95%]'} ${
-                        msg.role === 'user' ? 'justify-end' : 'justify-start'
-                      }`}
+                      className={`flex gap-2.5 ${isMaximized ? 'max-w-[85%]' : 'max-w-[95%]'} ${msg.role === 'user' ? 'justify-end' : 'justify-start'
+                        }`}
                     >
                       {msg.role === 'assistant' && (
                         <div className="w-6 h-6 rounded-lg bg-brand-600/30 border border-brand-500/40 flex items-center justify-center text-brand-300 shrink-0 mt-0.5">
@@ -795,11 +791,10 @@ export const HomePage: React.FC = () => {
                         </div>
                       )}
                       <div
-                        className={`p-3 rounded-2xl text-xs leading-relaxed ${
-                          msg.role === 'user'
+                        className={`p-3 rounded-2xl text-xs leading-relaxed ${msg.role === 'user'
                             ? 'bg-gradient-to-r from-brand-600 to-indigo-600 text-white rounded-tr-sm shadow-glow-cyan'
                             : 'glass-card text-slate-200 border border-white/10 rounded-tl-sm'
-                        }`}
+                          }`}
                       >
                         <p className="whitespace-pre-line">{msg.text}</p>
                         <span className="block text-[9px] text-slate-400 mt-1 text-right font-mono">
@@ -856,11 +851,10 @@ export const HomePage: React.FC = () => {
                                 <button
                                   disabled={isLoadingThis}
                                   onClick={() => handleAddToCart(rec.product.id, rec.product.name)}
-                                  className={`py-1.5 px-3 rounded-lg text-xs font-bold shrink-0 transition-all ${
-                                    isAdded
+                                  className={`py-1.5 px-3 rounded-lg text-xs font-bold shrink-0 transition-all ${isAdded
                                       ? 'bg-emerald-600/30 text-emerald-300 border border-emerald-500/40'
                                       : 'bg-brand-500 hover:bg-brand-400 text-white shadow-glow-cyan'
-                                  }`}
+                                    }`}
                                 >
                                   {isLoadingThis ? (
                                     <Loader2 className="w-3.5 h-3.5 animate-spin text-white" />
@@ -966,9 +960,8 @@ export const HomePage: React.FC = () => {
                     onChange={(e) => setInputMessage(e.target.value)}
                     disabled={isProcessing}
                     placeholder={isListening ? '🎙️ Listening to speech...' : chatPlaceholders[placeholderIndex]}
-                    className={`w-full pl-3 pr-8 py-2.5 rounded-xl bg-slate-900/90 border text-xs sm:text-sm text-white placeholder-slate-400 outline-none transition-all ${
-                      isListening ? 'border-emerald-400 ring-2 ring-emerald-500/30' : 'border-white/15 focus:border-brand-400'
-                    }`}
+                    className={`w-full pl-3 pr-8 py-2.5 rounded-xl bg-slate-900/90 border text-xs sm:text-sm text-white placeholder-slate-400 outline-none transition-all ${isListening ? 'border-emerald-400 ring-2 ring-emerald-500/30' : 'border-white/15 focus:border-brand-400'
+                      }`}
                   />
 
                   {isSupported && (
@@ -976,9 +969,8 @@ export const HomePage: React.FC = () => {
                       type="button"
                       onClick={toggleMic}
                       title={isListening ? 'Stop Speech Recording' : 'Voice Search with Speech API'}
-                      className={`absolute right-2 top-2 p-1 rounded-lg transition-colors ${
-                        isListening ? 'bg-emerald-500/30 text-emerald-300 animate-pulse' : 'text-slate-400 hover:text-white'
-                      }`}
+                      className={`absolute right-2 top-2 p-1 rounded-lg transition-colors ${isListening ? 'bg-emerald-500/30 text-emerald-300 animate-pulse' : 'text-slate-400 hover:text-white'
+                        }`}
                     >
                       {isListening ? <MicOff className="w-4 h-4 text-emerald-400" /> : <Mic className="w-4 h-4" />}
                     </button>
@@ -1095,11 +1087,10 @@ export const HomePage: React.FC = () => {
                               <button
                                 disabled={isLoadingThis}
                                 onClick={() => handleAddToCart(rec.product.id, rec.product.name)}
-                                className={`px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all ${
-                                  isAdded
+                                className={`px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all ${isAdded
                                     ? 'bg-emerald-600/30 text-emerald-300 border border-emerald-500/40'
                                     : 'bg-brand-500 hover:bg-brand-400 text-white shadow-glow-cyan'
-                                }`}
+                                  }`}
                               >
                                 {isLoadingThis ? (
                                   <Loader2 className="w-4 h-4 animate-spin text-white" />
@@ -1182,11 +1173,10 @@ export const HomePage: React.FC = () => {
                     voiceAgent.startListening(false);
                   }
                 }}
-                className={`px-5 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
-                  voiceAgent.isListening
+                className={`px-5 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${voiceAgent.isListening
                     ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40 hover:bg-rose-500/30'
                     : 'bg-brand-500 text-slate-950 font-extrabold hover:bg-brand-400 shadow-glow-cyan'
-                }`}
+                  }`}
               >
                 {voiceAgent.isListening ? <MicOff className="w-4 h-4 text-rose-400" /> : <Mic className="w-4 h-4 text-slate-950" />}
                 <span>{voiceAgent.isListening ? 'Stop Recording' : 'Start Speaking'}</span>
