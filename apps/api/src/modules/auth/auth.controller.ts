@@ -28,6 +28,20 @@ export class AuthController {
     }
   }
 
+  static async refreshToken(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const refreshTokenInput = req.body.refreshToken || req.headers['x-refresh-token'];
+      const result = await AuthService.refreshTokens(refreshTokenInput as string);
+      res.status(200).json({
+        success: true,
+        data: result,
+        requestId: req.requestId,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
   static async getMe(req: Request, res: Response, Next: NextFunction): Promise<void> {
     try {
       const user = await AuthService.getMe(req.user!.id);

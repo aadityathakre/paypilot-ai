@@ -19,6 +19,7 @@ export interface User {
 interface AuthContextType {
   user: User | null;
   token: string | null;
+  refreshTokenVal: string | null;
   isAuthenticated: boolean;
   isAuthModalOpen: boolean;
   login: (email: string, password: string) => Promise<boolean>;
@@ -26,6 +27,7 @@ interface AuthContextType {
   quickLoginAs: (role: 'CUSTOMER' | 'MERCHANT') => Promise<boolean>;
   logout: () => void;
   refreshUser: () => Promise<void>;
+  refreshAuthTokens: () => Promise<boolean>;
   openAuthModal: () => void;
   closeAuthModal: () => void;
 }
@@ -39,7 +41,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   });
 
   const [token, setToken] = useState<string | null>(() => {
-    return localStorage.getItem('paypilot_token') || null;
+    return localStorage.getItem('paypilot_token') || localStorage.getItem('paypilot_access_token') || null;
+  });
+
+  const [refreshTokenVal, setRefreshTokenVal] = useState<string | null>(() => {
+    return localStorage.getItem('paypilot_refresh_token') || null;
   });
 
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
@@ -52,6 +58,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, []);
 
+  const refreshAuthTokens = async (): Promise<boolean> => {
+    const rfToken = refreshTokenVal || localStorage.getItem('paypilot_refresh_token');
+    if (!rfToken) return false;
+
+    try {
+      const res = await fetch('/api/auth/refresh', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refreshToken: rfToken }),
+      });
+      const data = await res.json();
+      if (data.success && data.data?.accessToken) {
+        const newAccess = data.data.accessToken;
+        const newRefresh = data.data.refreshToken || rfToken;
+        setToken(newAccess);
+        setRefreshTokenVal(newRefresh);
+        localStorage.setItem('paypilot_token', newAccess);
+        localStorage.setItem('paypilot_access_token', newAccess);
+        localStorage.setItem('paypilot_refresh_token', newRefresh);
+        return true;
+      }
+    } catch (err) {
+      console.error('Failed to refresh tokens:', err);
+    }
+    return false;
+  };
+
   const login = async (email: string, password: string): Promise<boolean> => {
     try {
       const res = await fetch('/api/auth/login', {
@@ -60,11 +93,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         body: JSON.stringify({ email, password }),
       });
       const data = await res.json();
-      if (data.success && data.data?.token) {
+      if (data.success && (data.data?.token || data.data?.accessToken)) {
+        const accToken = data.data.accessToken || data.data.token;
+        const refToken = data.data.refreshToken || '';
         setUser(data.data.user);
-        setToken(data.data.token);
+        setToken(accToken);
+        setRefreshTokenVal(refToken);
         localStorage.setItem('paypilot_user', JSON.stringify(data.data.user));
-        localStorage.setItem('paypilot_token', data.data.token);
+        localStorage.setItem('paypilot_token', accToken);
+        localStorage.setItem('paypilot_access_token', accToken);
+        if (refToken) localStorage.setItem('paypilot_refresh_token', refToken);
         localStorage.removeItem('paypilot_logged_out');
         setIsAuthModalOpen(false);
         return true;
@@ -89,11 +127,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         body: JSON.stringify({ name, email, password, role }),
       });
       const data = await res.json();
-      if (data.success && data.data?.token) {
+      if (data.success && (data.data?.token || data.data?.accessToken)) {
+        const accToken = data.data.accessToken || data.data.token;
+        const refToken = data.data.refreshToken || '';
         setUser(data.data.user);
-        setToken(data.data.token);
+        setToken(accToken);
+        setRefreshTokenVal(refToken);
         localStorage.setItem('paypilot_user', JSON.stringify(data.data.user));
-        localStorage.setItem('paypilot_token', data.data.token);
+        localStorage.setItem('paypilot_token', accToken);
+        localStorage.setItem('paypilot_access_token', accToken);
+        if (refToken) localStorage.setItem('paypilot_refresh_token', refToken);
         localStorage.removeItem('paypilot_logged_out');
         setIsAuthModalOpen(false);
         return true;
@@ -117,17 +160,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const logout = () => {
     setUser(null);
     setToken(null);
+    setRefreshTokenVal(null);
     localStorage.removeItem('paypilot_user');
     localStorage.removeItem('paypilot_token');
+    localStorage.removeItem('paypilot_access_token');
+    localStorage.removeItem('paypilot_refresh_token');
     localStorage.setItem('paypilot_logged_out', 'true');
   };
 
   const refreshUser = async () => {
     if (!token) return;
     try {
-      const res = await fetch('/api/auth/me', {
+      let res = await fetch('/api/auth/me', {
         headers: { Authorization: `Bearer ${token}` },
       });
+      if (res.status === 401) {
+        const refreshed = await refreshAuthTokens();
+        if (refreshed) {
+          const freshToken = localStorage.getItem('paypilot_token');
+          res = await fetch('/api/auth/me', {
+            headers: { Authorization: `Bearer ${freshToken}` },
+          });
+        }
+      }
       const data = await res.json();
       if (data.success && data.data?.user) {
         setUser(data.data.user);
@@ -143,6 +198,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       value={{
         user,
         token,
+        refreshTokenVal,
         isAuthenticated: !!user && !!token,
         isAuthModalOpen,
         login,
@@ -150,6 +206,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         quickLoginAs,
         logout,
         refreshUser,
+        refreshAuthTokens,
         openAuthModal: () => setIsAuthModalOpen(true),
         closeAuthModal: () => setIsAuthModalOpen(false),
       }}

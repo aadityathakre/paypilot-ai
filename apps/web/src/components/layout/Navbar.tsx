@@ -318,88 +318,100 @@ export const Navbar: React.FC = () => {
             )}
           </nav>
 
-          {/* Right side User Profile Avatar Badge */}
-          <div className="hidden md:flex items-center gap-2.5">
+          {/* Right side User Profile Avatar Badge & Logout Icon */}
+          <div className="hidden md:flex items-center gap-2">
             {isAuthenticated && user ? (
-              <div className="relative">
-                <Link
-                  to="/profile"
-                  className="flex items-center gap-2.5 px-3.5 py-1.5 rounded-xl bg-slate-900 border border-white/15 hover:border-brand-500/50 text-xs transition-all shadow-md group"
-                >
-                  {user.avatarUrl ? (
-                    <img
-                      src={user.avatarUrl}
-                      alt={user.name}
-                      className="w-7 h-7 rounded-lg object-cover border border-brand-400/40 shadow-glow-cyan"
-                    />
-                  ) : (
-                    <div className="w-7 h-7 rounded-lg bg-gradient-to-tr from-brand-500 to-indigo-600 flex items-center justify-center text-white font-black text-xs shadow-glow-cyan">
-                      {user.name.charAt(0).toUpperCase()}
-                    </div>
-                  )}
-
-                  <div className="text-left">
-                    <span className="block font-bold text-white group-hover:text-brand-300 transition-colors leading-tight">
-                      {user.name}
-                    </span>
-                    <span className="block text-[9px] text-emerald-400 font-mono uppercase leading-tight font-bold">
-                      {user.role} • Profile Hub
-                    </span>
-                  </div>
-                </Link>
-
-                {/* Dropdown */}
-                {userMenuOpen && (
-                  <div className="absolute right-0 mt-2 w-48 rounded-xl bg-slate-900 border border-white/15 shadow-2xl p-1.5 space-y-1 z-50 animate-fade-in text-xs">
-                    <div className="px-3 py-1.5 border-b border-white/10">
-                      <span className="block text-[10px] text-slate-400">Signed in as</span>
-                      <span className="block text-xs font-semibold text-white truncate">{user.email}</span>
-                    </div>
-
-                    {!isMerchant ? (
-                      <>
-                        <Link
-                          to="/orders"
-                          onClick={() => setUserMenuOpen(false)}
-                          className="w-full text-left px-3 py-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 flex items-center gap-2"
-                        >
-                          <Package className="w-3.5 h-3.5 text-emerald-400" />
-                          <span>My Orders & Wallet</span>
-                        </Link>
-                      </>
+              <div className="flex items-center gap-2">
+                <div className="relative">
+                  <Link
+                    to="/profile"
+                    className="flex items-center gap-2.5 px-3.5 py-1.5 rounded-xl bg-slate-900 border border-white/15 hover:border-brand-500/50 text-xs transition-all shadow-md group"
+                  >
+                    {user.avatarUrl ? (
+                      <img
+                        src={user.avatarUrl}
+                        alt={user.name}
+                        className="w-7 h-7 rounded-lg object-cover border border-brand-400/40 shadow-glow-cyan"
+                      />
                     ) : (
-                      <>
-                        <Link
-                          to="/merchant"
-                          onClick={() => setUserMenuOpen(false)}
-                          className="w-full text-left px-3 py-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 flex items-center gap-2"
-                        >
-                          <Store className="w-3.5 h-3.5 text-purple-400" />
-                          <span>Merchant Studio</span>
-                        </Link>
-                        <Link
-                          to="/merchant/products"
-                          onClick={() => setUserMenuOpen(false)}
-                          className="w-full text-left px-3 py-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 flex items-center gap-2"
-                        >
-                          <Layers className="w-3.5 h-3.5 text-cyan-400" />
-                          <span>Product Catalog</span>
-                        </Link>
-                      </>
+                      <div className="w-7 h-7 rounded-lg bg-gradient-to-tr from-brand-500 to-indigo-600 flex items-center justify-center text-white font-black text-xs shadow-glow-cyan">
+                        {user.name.charAt(0).toUpperCase()}
+                      </div>
                     )}
 
-                    <button
-                      onClick={() => {
-                        setUserMenuOpen(false);
-                        logout();
-                      }}
-                      className="w-full text-left px-3 py-1.5 rounded-lg text-rose-400 hover:bg-rose-500/10 flex items-center gap-2 font-medium"
-                    >
-                      <LogOut className="w-3.5 h-3.5" />
-                      <span>Sign Out</span>
-                    </button>
-                  </div>
-                )}
+                    <div className="text-left">
+                      <span className="block font-bold text-white group-hover:text-brand-300 transition-colors leading-tight">
+                        {user.name}
+                      </span>
+                      <span className="block text-[9px] text-emerald-400 font-mono uppercase leading-tight font-bold">
+                        {user.role} • Profile Hub
+                      </span>
+                    </div>
+                  </Link>
+
+                  {/* Dropdown */}
+                  {userMenuOpen && (
+                    <div className="absolute right-0 mt-2 w-48 rounded-xl bg-slate-900 border border-white/15 shadow-2xl p-1.5 space-y-1 z-50 animate-fade-in text-xs">
+                      <div className="px-3 py-1.5 border-b border-white/10">
+                        <span className="block text-[10px] text-slate-400">Signed in as</span>
+                        <span className="block text-xs font-semibold text-white truncate">{user.email}</span>
+                      </div>
+
+                      {!isMerchant ? (
+                        <>
+                          <Link
+                            to="/orders"
+                            onClick={() => setUserMenuOpen(false)}
+                            className="w-full text-left px-3 py-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 flex items-center gap-2"
+                          >
+                            <Package className="w-3.5 h-3.5 text-emerald-400" />
+                            <span>My Orders & Wallet</span>
+                          </Link>
+                        </>
+                      ) : (
+                        <>
+                          <Link
+                            to="/merchant"
+                            onClick={() => setUserMenuOpen(false)}
+                            className="w-full text-left px-3 py-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 flex items-center gap-2"
+                          >
+                            <Store className="w-3.5 h-3.5 text-purple-400" />
+                            <span>Merchant Studio</span>
+                          </Link>
+                          <Link
+                            to="/merchant/products"
+                            onClick={() => setUserMenuOpen(false)}
+                            className="w-full text-left px-3 py-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 flex items-center gap-2"
+                          >
+                            <Layers className="w-3.5 h-3.5 text-cyan-400" />
+                            <span>Product Catalog</span>
+                          </Link>
+                        </>
+                      )}
+
+                      <button
+                        onClick={() => {
+                          setUserMenuOpen(false);
+                          logout();
+                        }}
+                        className="w-full text-left px-3 py-1.5 rounded-lg text-rose-400 hover:bg-rose-500/10 flex items-center gap-2 font-medium"
+                      >
+                        <LogOut className="w-3.5 h-3.5" />
+                        <span>Sign Out</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Icon-only Logout Button right to Profile Icon */}
+                <button
+                  onClick={logout}
+                  title="Log Out"
+                  aria-label="Log Out"
+                  className="p-2 rounded-xl bg-slate-900 border border-white/15 text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 hover:border-rose-500/40 transition-all shadow-md flex items-center justify-center group shrink-0"
+                >
+                  <LogOut className="w-4 h-4 transition-transform group-hover:scale-110" />
+                </button>
               </div>
             ) : (
               <button

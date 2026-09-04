@@ -29,7 +29,12 @@ export const authenticateJwt = (req: Request, _res: Response, next: NextFunction
   const token = authHeader.split(' ')[1];
 
   try {
-    const decoded = jwt.verify(token, env.JWT_SECRET) as AuthUser;
+    let decoded: AuthUser;
+    try {
+      decoded = jwt.verify(token, env.JWT_ACCESS_SECRET) as AuthUser;
+    } catch {
+      decoded = jwt.verify(token, env.JWT_SECRET) as AuthUser;
+    }
     req.user = {
       id: decoded.id,
       email: decoded.email,
@@ -54,7 +59,12 @@ export const optionalJwt = (req: Request, _res: Response, next: NextFunction): v
 
   const token = authHeader.split(' ')[1];
   try {
-    const decoded = jwt.verify(token, env.JWT_SECRET) as AuthUser;
+    let decoded: AuthUser;
+    try {
+      decoded = jwt.verify(token, env.JWT_ACCESS_SECRET) as AuthUser;
+    } catch {
+      decoded = jwt.verify(token, env.JWT_SECRET) as AuthUser;
+    }
     req.user = decoded;
   } catch {
     // Ignore invalid token in optional mode

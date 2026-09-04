@@ -26,6 +26,8 @@ interface SafeUser {
 
 interface AuthResponse {
   user: SafeUser;
+  accessToken: string;
+  refreshToken: string;
   token: string;
 }
 
@@ -80,12 +82,14 @@ export class AuthService {
       merchantData = { id: merchant.id, name: merchant.name, currency: merchant.currency };
     }
 
-    const token = this.generateToken({
+    const authPayload = {
       id: user.id,
       email: user.email,
       role: user.role,
       merchantId,
-    });
+    };
+    const accessToken = this.generateAccessToken(authPayload);
+    const refreshToken = this.generateRefreshToken(authPayload);
 
     return {
       user: {
@@ -100,7 +104,9 @@ export class AuthService {
         createdAt: user.createdAt,
         merchant: merchantData,
       },
-      token,
+      accessToken,
+      refreshToken,
+      token: accessToken,
     };
   }
 
@@ -130,12 +136,14 @@ export class AuthService {
     const primaryMerchant = user.merchants[0] || null;
     const merchantId = primaryMerchant ? primaryMerchant.id : undefined;
 
-    const token = this.generateToken({
+    const authPayload = {
       id: user.id,
       email: user.email,
       role: user.role,
       merchantId,
-    });
+    };
+    const accessToken = this.generateAccessToken(authPayload);
+    const refreshToken = this.generateRefreshToken(authPayload);
 
     return {
       user: {
@@ -150,7 +158,9 @@ export class AuthService {
         createdAt: user.createdAt,
         merchant: primaryMerchant,
       },
-      token,
+      accessToken,
+      refreshToken,
+      token: accessToken,
     };
   }
 
@@ -230,12 +240,51 @@ export class AuthService {
   }
 
   /**
-   * Helper to sign a JWT token
+   * Helper to sign a short-lived Access Token (15m)
    */
-  private static generateToken(payload: AuthUser): string {
-    return jwt.sign(payload, env.JWT_SECRET, {
-      expiresIn: '7d',
+  private static generateAccessToken(payload: AuthUser): string {
+    return jwt.sign(payload, env.JWT_ACCESS_SECRET, {
+      expiresIn: (env.JWT_ACCESS_EXPIRES_IN || '15m') as any,
     });
+  }
+
+  /**
+   * Helper to sign a long-lived Refresh Token (7d)
+   */
+  private static generateRefreshToken(payload: AuthUser): string {
+    return jwt.sign(payload, env.JWT_REFRESH_SECRET, {
+      expiresIn: (env.JWT_REFRESH_EXPIRES_IN || '7d') as any,
+    });
+  }
+
+  /**
+   * Refresh authentication access token using a valid refresh token
+   */
+  static async refreshTokens(refreshTokenInput: string): Promise<{ accessToken: string; refreshToken: string; token: string }> {
+    if (!refreshTokenInput) {
+      throw new AppError('Refresh token is required.', 400, 'REFRESH_TOKEN_REQUIRED');
+    }
+
+    try {
+      const decoded = jwt.verify(refreshTokenInput, env.JWT_REFRESH_SECRET) as AuthUser;
+      const payload: AuthUser = {
+        id: decoded.id,
+        email: decoded.email,
+        role: decoded.role,
+        merchantId: decoded.merchantId,
+      };
+
+      const accessToken = this.generateAccessToken(payload);
+      const newRefreshToken = this.generateRefreshToken(payload);
+
+      return {
+        accessToken,
+        refreshToken: newRefreshToken,
+        token: accessToken,
+      };
+    } catch {
+      throw new AppError('Invalid or expired refresh token. Please log in again.', 401, 'REFRESH_TOKEN_INVALID');
+    }
   }
 
   /**
