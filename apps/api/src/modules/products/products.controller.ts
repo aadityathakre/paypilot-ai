@@ -6,8 +6,13 @@ export class ProductsController {
   static async listProducts(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const queryParams: any = { ...req.query };
-      if ((queryParams.mine === 'true' || queryParams.mine === true) && req.user?.merchantId) {
-        queryParams.merchantId = req.user.merchantId;
+      if (queryParams.mine === 'true' || queryParams.mine === true) {
+        if (req.user?.merchantId) {
+          queryParams.merchantId = req.user.merchantId;
+        } else {
+          // If mine=true is requested but no merchantId is found, return empty array (no products)
+          queryParams.merchantId = '00000000-0000-0000-0000-000000000000';
+        }
       }
       const result = await ProductsService.listProducts(queryParams);
       res.status(200).json({
