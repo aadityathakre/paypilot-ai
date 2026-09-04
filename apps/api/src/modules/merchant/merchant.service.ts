@@ -89,9 +89,9 @@ export class MerchantService {
       .sort((a, b) => b.unitsSold - a.unitsSold)
       .slice(0, 5);
 
-    // Fetch all active products for low stock & slow moving calculation
+    // Fetch all active products for low stock & slow moving calculation for this specific merchant
     const allMerchantProducts = await prisma.product.findMany({
-      where: { active: true },
+      where: { merchantId, active: true },
       orderBy: { createdAt: 'desc' },
     });
 
