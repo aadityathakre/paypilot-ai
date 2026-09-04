@@ -41,7 +41,7 @@ interface CartContextType {
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
 export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { token } = useAuth();
+  const { token, quickLoginAs } = useAuth();
   const [cart, setCart] = useState<Cart | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -75,17 +75,9 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     let activeToken = token;
     if (!activeToken) {
       try {
-        const loginRes = await fetch('/api/auth/login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: 'customer@paypilot.ai', password: 'CustomerPass@123' }),
-        });
-        const loginJson = await loginRes.json();
-        if (loginJson.success && loginJson.data?.token) {
-          const tokenStr: string = loginJson.data.token;
-          activeToken = tokenStr;
-          localStorage.setItem('paypilot_token', tokenStr);
-          window.dispatchEvent(new Event('storage'));
+        const loggedIn = await quickLoginAs('CUSTOMER');
+        if (loggedIn) {
+          activeToken = localStorage.getItem('paypilot_token');
         }
       } catch (err) {
         console.error('Error auto-authenticating guest customer for cart:', err);
