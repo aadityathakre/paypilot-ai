@@ -53,7 +53,8 @@ export class AgentService {
     sessionId: string,
     customerId: string,
     userMessage: string,
-    requestId = 'req_agent'
+    requestId = 'req_agent',
+    language = 'en'
   ): Promise<AgentDecisionResponse> {
     const session = await prisma.agentSession.findUnique({
       where: { id: sessionId },
@@ -202,7 +203,7 @@ export class AgentService {
     }
 
     // 4. Grounded or Conversational Natural-Language Explanation with History
-    const explanation = await AIProvider.generateExplanation(userMessage, intent, rankedProducts, history, suggestedBundle);
+    const explanation = await AIProvider.generateExplanation(userMessage, intent, rankedProducts, history, suggestedBundle, language);
 
     // 5. Record Assistant Message in DB
     await prisma.agentMessage.create({

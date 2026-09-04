@@ -49,8 +49,43 @@ export class AIProvider {
     intent: StructuredIntent,
     rankedProducts: RankedProduct[],
     history: Array<{ role: string; content: string }> = [],
-    suggestedBundle?: any
+    suggestedBundle?: any,
+    language = 'en'
   ): Promise<string> {
+    if (language === 'hi') {
+      if (suggestedBundle && suggestedBundle.products && suggestedBundle.products.length >= 3) {
+        return `बिल्कुल! आपके बजट के अनुसार हमने एक पूरा Verified Setup Bundle तैयार किया है:\n\n1. 💻 **${suggestedBundle.products[0].name}** (₹${suggestedBundle.products[0].priceInr.toLocaleString('en-IN')})\n2. ⌨️ **${suggestedBundle.products[1].name}** (₹${suggestedBundle.products[1].priceInr.toLocaleString('en-IN')})\n3. 🖱️ **${suggestedBundle.products[2].name}** (₹${suggestedBundle.products[2].priceInr.toLocaleString('en-IN')})\n\nकुल मूल्य: ~~₹${suggestedBundle.totalPriceInr.toLocaleString('en-IN')}~~ → **₹${suggestedBundle.discountedPriceInr.toLocaleString('en-IN')}** (आप ₹${suggestedBundle.savingsInr.toLocaleString('en-IN')} की बचत कर रहे हैं!). आप नीचे "+ Add Complete Setup Bundle" बटन से सभी आइटम्स एक साथ कार्ट में जोड़ सकते हैं!`;
+      }
+      if (rankedProducts.length === 0) {
+        return `नमस्ते! मैंने "${userMessage}" के लिए हमारे Verified Catalog में खोज की, लेकिन अभी कोई सटीक परिणाम नहीं मिला।\n\n💡 **सुझाव**: आप **Laptops**, **Monitors**, **Keyboards & Mice**, **Electronics**, या **Gadgets** खोज सकते हैं!`;
+      }
+      const topPick = rankedProducts[0].product;
+      const nameVal = topPick?.name || 'Verified Product';
+      const priceVal = topPick?.priceInr ?? (topPick?.pricePaise ? Number(topPick.pricePaise) / 100 : 0);
+      const topReasons = (rankedProducts[0]?.reasons && rankedProducts[0].reasons.length > 0)
+        ? rankedProducts[0].reasons.join(', ')
+        : `उत्कृष्ट विकल्प`;
+
+      return `आपकी पसंद के अनुसार, मैं **${nameVal}** (₹${priceVal.toLocaleString('en-IN')}) की सिफारिश करता हूँ।\n\nयह आपके खोज मानदंडों (${topReasons}) से बिल्कुल मेल खाता है। आप इसे सीधे नीचे अपने कार्ट में जोड़ सकते हैं!`;
+    }
+
+    if (language === 'mr') {
+      if (suggestedBundle && suggestedBundle.products && suggestedBundle.products.length >= 3) {
+        return `नक्कीच! तुमच्या बजेटनुसार आम्ही एक पूर्ण Verified Setup Bundle तयार केला आहे:\n\n1. 💻 **${suggestedBundle.products[0].name}** (₹${suggestedBundle.products[0].priceInr.toLocaleString('en-IN')})\n2. ⌨️ **${suggestedBundle.products[1].name}** (₹${suggestedBundle.products[1].priceInr.toLocaleString('en-IN')})\n3. 🖱️ **${suggestedBundle.products[2].name}** (₹${suggestedBundle.products[2].priceInr.toLocaleString('en-IN')})\n\nएकूण किंमत: ~~₹${suggestedBundle.totalPriceInr.toLocaleString('en-IN')}~~ → **₹${suggestedBundle.discountedPriceInr.toLocaleString('en-IN')}** (तुम्ही ₹${suggestedBundle.savingsInr.toLocaleString('en-IN')} बचत करत आहात!). तुम्ही खालील बटनावर क्लिक करून सर्व उत्पादने एकाच वेळी कार्टमध्ये जोडू शकता!`;
+      }
+      if (rankedProducts.length === 0) {
+        return `नमस्कार! मी "${userMessage}" साठी आमच्या Verified Catalog मध्ये शोधले, परंतु सध्या कोणताही अचूक निकाल मिळाला नाही.\n\n💡 **टीप**: तुम्ही **Laptops**, **Monitors**, **Keyboards & Mice**, **Electronics**, किंवा **Gadgets** शोधू शकता!`;
+      }
+      const topPick = rankedProducts[0].product;
+      const nameVal = topPick?.name || 'Verified Product';
+      const priceVal = topPick?.priceInr ?? (topPick?.pricePaise ? Number(topPick.pricePaise) / 100 : 0);
+      const topReasons = (rankedProducts[0]?.reasons && rankedProducts[0].reasons.length > 0)
+        ? rankedProducts[0].reasons.join(', ')
+        : `उत्कृष्ट पर्याय`;
+
+      return `तुमच्या निवडीनुसार, मी **${nameVal}** (₹${priceVal.toLocaleString('en-IN')}) ची शिफारस करतो.\n\nहे तुमच्या निकषांशी (${topReasons}) तंतोतंत जुळते. तुम्ही हे खाली थेट तुमच्या कार्टमध्ये जोडू शकता!`;
+    }
+
     if (suggestedBundle && suggestedBundle.products && suggestedBundle.products.length >= 3) {
       return `Bilkul! Aapke budget ke under humne ek Complete Verified Workstation Bundle prepare kiya hai:\n\n1. 💻 **${suggestedBundle.products[0].name}** (₹${suggestedBundle.products[0].priceInr.toLocaleString('en-IN')})\n2. ⌨️ **${suggestedBundle.products[1].name}** (₹${suggestedBundle.products[1].priceInr.toLocaleString('en-IN')})\n3. 🖱️ **${suggestedBundle.products[2].name}** (₹${suggestedBundle.products[2].priceInr.toLocaleString('en-IN')})\n\nTotal Value: ~~₹${suggestedBundle.totalPriceInr.toLocaleString('en-IN')}~~ → **₹${suggestedBundle.discountedPriceInr.toLocaleString('en-IN')}** (Aap ₹${suggestedBundle.savingsInr.toLocaleString('en-IN')} save kar rahe hain!). Aap niche "+ Add Complete Setup Bundle" button se sabhi items ek saath cart mein add kar sakte hain!`;
     }

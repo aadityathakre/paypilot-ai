@@ -97,6 +97,14 @@ export const CustomerProfilePage: React.FC = () => {
   const handleLanguageChange = (lang: 'en' | 'hi' | 'mr') => {
     setLanguage(lang);
     localStorage.setItem('paypilot_language', lang);
+    window.dispatchEvent(new CustomEvent('paypilot_language_changed', { detail: { lang } }));
+
+    const labels = {
+      en: 'System language set to English. AI Voice Assistant will respond in English.',
+      hi: 'भाषा बदलकर हिंदी (Hindi) की गई! वॉयस असिस्टेंट और एआई चैटबॉट अब हिंदी में उत्तर देंगे।',
+      mr: 'भाषा बदलून मराठी (Marathi) केली! व्हॉइस असिस्टंट आणि एआय चॅटबॉट आता मराठीत उत्तर देतील.',
+    };
+    setProfileMsg({ type: 'success', text: labels[lang] });
   };
 
   const fetchOrders = async () => {

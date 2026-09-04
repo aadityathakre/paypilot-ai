@@ -21,9 +21,9 @@ export class AgentController {
     try {
       const customerId = req.user!.id;
       const sessionId = req.params.id;
-      const { message } = req.body;
+      const { message, language } = req.body;
 
-      const decision = await AgentService.processMessage(sessionId, customerId, message, req.requestId);
+      const decision = await AgentService.processMessage(sessionId, customerId, message, req.requestId, language);
       res.status(200).json({
         success: true,
         data: decision,

@@ -339,13 +339,15 @@ export const HomePage: React.FC = () => {
         const sessData = await sessRes.json();
         const activeSessionId = sessData.data?.session?.id;
 
+        const selectedLang = localStorage.getItem('paypilot_language') || 'en';
+
         const res = await fetch(`/api/agent/sessions/${activeSessionId}/messages`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             Authorization: `Bearer ${activeToken}`,
           },
-          body: JSON.stringify({ message: text }),
+          body: JSON.stringify({ message: text, language: selectedLang }),
         });
 
         const json = await res.json();
@@ -363,13 +365,15 @@ export const HomePage: React.FC = () => {
           speakAssistantResponse(assistantMsg.text);
         }
       } else {
+        const selectedLang = localStorage.getItem('paypilot_language') || 'en';
+
         const res = await fetch(`/api/agent/sessions/${sessionId}/messages`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             Authorization: `Bearer ${token}`,
           },
-          body: JSON.stringify({ message: text }),
+          body: JSON.stringify({ message: text, language: selectedLang }),
         });
 
         const json = await res.json();
